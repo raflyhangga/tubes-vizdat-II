@@ -20,3 +20,8 @@ Check if streamline installed correctly
 ```bash
 streamline hello
 ```
+
+To run the current implementation
+```bash
+streamlit run main.py
+```
