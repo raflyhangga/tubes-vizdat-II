@@ -18,7 +18,7 @@ source .venv/bin/activate
 
 Check if streamline installed correctly
 ```bash
-streamline hello
+streamlit hello
 ```
 
 To run the current implementation
