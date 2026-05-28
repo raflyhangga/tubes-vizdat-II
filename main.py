@@ -37,10 +37,14 @@ review_types = st.sidebar.multiselect(
     default=["All"],
     help="Select review categories to include"
 )
-if "All" in review_types or not review_types:
+if "All" in review_types:
     review_type_filter = df["review_type"].unique().tolist()
+elif not review_types:
+    review_type_filter = []
 else:
     review_type_filter = review_types
+
+has_review_types = bool(review_type_filter)
 
 # Year Range Slider
 year_min_data = int(df["review_year"].min())
@@ -55,34 +59,48 @@ year_range = st.sidebar.slider(
 
 # Cabin Flown (Airline-specific)
 cabin_flown = []
-if "cabin_flown" in df.columns:
+if has_review_types and "cabin_flown" in df.columns and "airline" in review_type_filter:
     cabin_options = sorted([x for x in df["cabin_flown"].dropna().unique() if pd.notna(x)])
-    cabin_flown = st.sidebar.multiselect(
+    selected_cabin_flown = st.sidebar.multiselect(
         "Cabin Class (Airline Reviews only)",
-        options=cabin_options,
-        default=cabin_options,
+        options=["All"] + cabin_options,
+        default=["All"],
         help="Only applies to airline reviews"
     )
+    if "All" in selected_cabin_flown or not selected_cabin_flown:
+        cabin_flown = cabin_options
+    else:
+        cabin_flown = selected_cabin_flown
 
 # Traveller Type
 type_traveller = []
-if "type_traveller" in df.columns:
+if has_review_types and "type_traveller" in df.columns and any(review_type in review_type_filter for review_type in ["airline", "lounge", "seat"]):
     traveller_options = sorted([x for x in df["type_traveller"].dropna().unique() if pd.notna(x)])
-    type_traveller = st.sidebar.multiselect(
+    selected_traveller_type = st.sidebar.multiselect(
         "Traveller Type (Except Airport Reviews)",
-        options=traveller_options,
-        default=traveller_options,
+        options=["All"] + traveller_options,
+        default=["All"],
         help="Filter by traveller type (sparse data)"
     )
+    if "All" in selected_traveller_type or not selected_traveller_type:
+        type_traveller = traveller_options
+    else:
+        type_traveller = selected_traveller_type
 
 # Reviewer Country
-country_options = sorted([x for x in df["author_country"].dropna().unique() if pd.notna(x)])
-author_country = st.sidebar.multiselect(
-    "Reviewer Country",
-    options=country_options,
-    default=country_options,
-    help="Filter by reviewer's country of origin"
-)
+author_country = []
+if has_review_types:
+    country_options = sorted([x for x in df["author_country"].dropna().unique() if pd.notna(x)])
+    selected_countries = st.sidebar.multiselect(
+        "Reviewer Country",
+        options=["All"] + country_options,
+        default=["All"],
+        help="Filter by reviewer's country of origin"
+    )
+    if "All" in selected_countries or not selected_countries:
+        author_country = country_options
+    else:
+        author_country = selected_countries
 
 # Choropleth Metric Radio
 choropleth_metric = st.sidebar.radio(
