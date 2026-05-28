@@ -58,26 +58,22 @@ cabin_flown = []
 if "cabin_flown" in df.columns:
     cabin_options = sorted([x for x in df["cabin_flown"].dropna().unique() if pd.notna(x)])
     cabin_flown = st.sidebar.multiselect(
-        "Cabin Class (Airline only)",
+        "Cabin Class (Airline Reviews only)",
         options=cabin_options,
         default=cabin_options,
         help="Only applies to airline reviews"
     )
-else:
-    st.sidebar.info("Cabin Class filter unavailable in consolidated view. Use airline_clean.csv for detailed analysis.")
 
 # Traveller Type
 type_traveller = []
 if "type_traveller" in df.columns:
     traveller_options = sorted([x for x in df["type_traveller"].dropna().unique() if pd.notna(x)])
     type_traveller = st.sidebar.multiselect(
-        "Traveller Type",
+        "Traveller Type (Except Airport Reviews)",
         options=traveller_options,
         default=traveller_options,
         help="Filter by traveller type (sparse data)"
     )
-else:
-    st.sidebar.info("Traveller Type filter unavailable in consolidated view.")
 
 # Reviewer Country
 country_options = sorted([x for x in df["author_country"].dropna().unique() if pd.notna(x)])
