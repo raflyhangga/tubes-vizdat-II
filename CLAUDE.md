@@ -92,22 +92,38 @@ Plotly visualization (choropleth, KPI cards, table)
 - **Columns:** review_type, entity_name, author, author_country, date, content, title, overall_rating, recommended, recommended_int, review_year, review_month, avg_sub_rating, review_word_count
 - **Review types:** airline (41K), airport (17K), lounge (2K), seat (1K)
 
-## Main.py Structure
+## Project Structure (Modular Architecture)
 
-The app is a single-file implementation (~240 lines) organized as:
+The codebase is organized for scalability and reusability:
 
-1. **Imports & Config** (streamlit, pandas, plotly, page config)
-2. **Constants** (COUNTRY_NAME_MAP, METRIC_COL, etc.)
-3. **Functions**
-   - `load_data()` — cached CSV load + normalization
-   - `apply_global_filters()` — centralizes all filter logic
-   - `aggregate_for_choropleth()` — country-level aggregation
-4. **Main execution**
-   - Sidebar filters
-   - `filtered_data = apply_global_filters(...)`
-   - KPI strip (4 st.metric cards)
-   - Choropleth map (px.choropleth)
-   - Top-15 table
+```
+main.py                  # Entry point: page config, filters, orchestration
+utils.py                 # Shared: load_data(), apply_global_filters(), KPI calculations, constants
+charts/
+  __init__.py
+  choropleth.py         # build_choropleth(), build_top15_table()
+data/
+  cleaned/
+    reviews_consolidated.csv
+```
+
+**main.py** (~150 lines)
+- Page config, title, header
+- Sidebar filter controls
+- Calls `apply_global_filters()` and `calculate_kpis()`
+- Imports and calls chart functions: `build_choropleth()`, `build_top15_table()`
+- Renders KPI metrics and charts
+
+**utils.py**
+- `load_data()` — cached CSV load + country name normalization
+- `apply_global_filters()` — centralized filter logic
+- `calculate_kpis()` — computes metrics for KPI strip
+- Constants: `COUNTRY_NAME_MAP`, `METRIC_COL`
+
+**charts/choropleth.py**
+- `aggregate_for_choropleth(filtered_data)` — country-level aggregations
+- `build_choropleth(filtered_data, metric)` — returns Plotly choropleth figure
+- `build_top15_table(filtered_data)` — returns formatted DataFrame for display
 
 ## Phase 2 Roadmap (Not Yet Implemented)
 
@@ -119,40 +135,70 @@ The plan in `CHOROPLETH-PLAN.md` describes 5 additional charts to add:
 4. **Scatter** — overall_rating vs avg_sub_rating, colored by recommended
 5. **Word Cloud** — split recommended=yes vs no (requires `wordcloud` package)
 
-Each follows the pattern:
+### Adding a Phase 2 Chart
+
+Each chart module exports a `build_<chart_name>(filtered_data) → fig` function:
+
+**1. Create `charts/new_chart.py`**
 ```python
-agg_data = filtered_data.groupby(...).agg(...)
-fig = px.<chart_type>(...)
-st.plotly_chart(fig, use_container_width=True)
+import plotly.express as px
+
+def build_bar_chart(filtered_data: pd.DataFrame) -> px.bar:
+    """Build a bar chart showing top entities by overall_rating."""
+    if len(filtered_data) == 0:
+        return None
+    
+    agg = filtered_data.groupby("entity_name").agg({
+        "overall_rating": "mean",
+        "author_country": "count"
+    }).rename(columns={"author_country": "count"}).reset_index()
+    
+    fig = px.bar(agg.nlargest(15, "overall_rating"), ...)
+    return fig
 ```
 
-**To add a Phase 2 chart:**
-1. Aggregate `filtered_data` by your grouping dimension
-2. Create the Plotly figure
-3. Add `st.subheader()` and `st.plotly_chart()` to main.py
-4. No filter changes needed — they all consume the same `filtered_data`
+**2. Update `main.py`**
+```python
+from charts.new_chart import build_bar_chart
+
+# After choropleth section:
+st.subheader("📊 Top Entities by Rating")
+if len(filtered_data) > 0:
+    fig = build_bar_chart(filtered_data)
+    if fig:
+        st.plotly_chart(fig, use_container_width=True)
+```
+
+**Key points:**
+- All chart functions receive pre-filtered `filtered_data` from main.py
+- No filter duplication—filters are centralized in `apply_global_filters()`
+- Return `None` for empty data; main.py handles rendering
+- Keep aggregation logic inside the chart module
 
 ## Common Development Tasks
 
-### Debug a filter issue
-- Add `st.write(filtered_data.head())` to inspect what rows are present after filtering
-- Check `filtered_data.shape` to see row count at each filter stage
-- Use `st.sidebar.write(review_type_filter)` to verify sidebar values are correct
-
 ### Add a new sidebar filter
-1. Create the `st.sidebar.multiselect()` or `st.sidebar.slider()` control
-2. Add logic to `apply_global_filters()` to apply the filter
-3. Call `apply_global_filters()` again with the new parameter
-4. All charts automatically react (they use filtered_data)
+1. Create the `st.sidebar.multiselect()` or `st.sidebar.slider()` control in main.py
+2. Add filter logic to `apply_global_filters()` in utils.py
+3. Pass the filter variable to `apply_global_filters()` call
+4. All chart functions automatically receive the updated `filtered_data`
+
+### Add a new chart
+1. Create a new file in `charts/` (e.g., `charts/bar_chart.py`)
+2. Implement `build_<chart_name>(filtered_data)` function that returns a Plotly figure
+3. Import and call the function in main.py, wrapping with `if len(filtered_data) > 0:`
+4. No need to duplicate filter logic—chart receives pre-filtered data
+
+### Debug a filter issue
+- Add `st.write(filtered_data.head())` in main.py to inspect rows after filtering
+- Check `filtered_data.shape` to see row count
+- Verify filter values with `st.sidebar.write(filter_variable)`
+- Test filter logic directly: `python -c "from utils import apply_global_filters; ..."`
 
 ### Optimize performance
-- The main bottleneck is loading the 47 MB CSV; `@st.cache_data` prevents this from running on every interaction
-- If you add charts that do heavy computation, wrap them in `@st.cache_data` keyed on filter values
-- Avoid groupby on 55K rows more than necessary; aggregate once, render multiple charts if possible
-
-### Test without Streamlit
-- Use `python -c` to test data loading, filtering, and aggregation logic directly
-- Example: `python -c "import pandas as pd; df = pd.read_csv('data/cleaned/reviews_consolidated.csv'); print(df.shape)"`
+- Main bottleneck: loading the 47 MB CSV. `@st.cache_data` on `load_data()` ensures it loads once per session.
+- For heavy chart computation, add `@st.cache_data` to aggregation functions in chart modules, keyed on filter state
+- Aggregate once in a chart function, reuse for multiple metrics if possible
 
 ## Known Gotchas
 

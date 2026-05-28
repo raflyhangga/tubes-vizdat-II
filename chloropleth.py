@@ -7,7 +7,7 @@ import numpy as np
 # PAGE CONFIG
 # ============================================================================
 st.set_page_config(
-    page_title="Skytrax Reviews Dashboard",
+    page_title="DuniaMaskapai",
     layout="wide",
     initial_sidebar_state="expanded"
 )
