@@ -10,6 +10,7 @@ from charts.choropleth import build_choropleth, build_top15_table
 # ============================================================================
 st.set_page_config(
     page_title="DuniaMaskapai",
+    page_icon="static/favicon.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -137,7 +138,7 @@ st.subheader("🗺️ Reviewer Geographic Distribution")
 if len(filtered_data) > 0:
     fig = build_choropleth(filtered_data, choropleth_metric)
     if fig:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     # ============================================================================
     # TOP-15 COUNTRIES TABLE
@@ -146,7 +147,7 @@ if len(filtered_data) > 0:
 
     top15 = build_top15_table(filtered_data)
     if not top15.empty:
-        st.dataframe(top15, use_container_width=True, hide_index=True)
+        st.dataframe(top15, width='stretch', hide_index=True)
 
 else:
     st.warning("⚠️ No data matches the selected filters. Try adjusting the filter criteria.")
