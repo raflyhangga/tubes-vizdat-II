@@ -210,8 +210,66 @@ if len(filtered_data) > 0:
 
 4. **Cached data stale on filter UI changes** — If you add a new filter, Streamlit may keep old cached data. Run `streamlit cache clear` to reset.
 
+## CI/CD Pipeline
+
+GitHub Actions automatically runs on every push and pull request to `main` or `chloropleth` branches. The workflow (`.github/workflows/ci.yml`) enforces code quality and prevents regressions:
+
+### Jobs
+
+1. **Lint and Format Check** — Ruff linter and Black code formatter
+   - Catches style violations and enforces consistent formatting
+   - Auto-fixable issues reported in PR comments
+
+2. **Type Check** — mypy static type checker
+   - Validates type hints for early bug detection
+   - Configured to allow untyped third-party packages (Streamlit, Plotly)
+
+3. **Streamlit App Verification** — Ensures app loads without import/runtime errors
+   - Creates minimal test CSV and attempts to load main.py
+   - Catches breaking changes in data flow or imports
+
+4. **Test Suite** — pytest with coverage reporting
+   - Currently passes (no tests yet)
+   - Ready for Phase 2 when test suite is created
+   - Coverage reports uploaded to Codecov on success
+
+### Running Checks Locally
+
+Before committing, run all checks to match CI:
+
+```bash
+# Format and lint
+black . && ruff check . --fix
+
+# Type check
+mypy . --ignore-missing-imports --allow-untyped-defs
+
+# Verify app
+streamlit run main.py --logger.level=debug
+```
+
+### Adding Tests (Phase 2)
+
+Tests go in a `tests/` directory. CI automatically discovers and runs them via pytest:
+
+```python
+# tests/test_utils.py
+from utils import apply_global_filters
+
+def test_apply_global_filters_empty():
+    # Test with empty DataFrame
+    pass
+```
+
+CI will run: `pytest tests/ -v --cov=./`
+
+See `CONTRIBUTING.md` for detailed development workflow.
+
 ## File References
 
 - **`CHOROPLETH-PLAN.md`** — Detailed implementation plan, Phase 2 chart blueprints, 27-point verification checklist
 - **`DATASET-METADATA.md`** — Complete schema, null rates, column descriptions, known limitations
 - **`README.md`** — Setup instructions (venv, installing dependencies)
+- **`CONTRIBUTING.md`** — Development workflow, running checks locally, adding tests
+- **`.github/workflows/ci.yml`** — GitHub Actions CI/CD configuration
+- **`pyproject.toml`** — Tool configuration (Black, Ruff, mypy, pytest)
