@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 from utils import load_data, apply_global_filters, calculate_kpis
-from charts.choropleth import build_choropleth, build_top15_table
+from charts.choropleth import build_choropleth
 
 # ============================================================================
 # PAGE CONFIG
@@ -23,16 +23,12 @@ df = load_data()
 # ============================================================================
 # PAGE HEADER
 # ============================================================================
-st.title("🌍 Skytrax Reviews Dashboard")
-st.caption(
-    "Analyze airline, airport, lounge, and seat reviews from the Skytrax platform (2015). "
-    "Use the filters below to explore reviewer countries, ratings, and trends."
-)
+st.title("Skytrax Reviews Dashboard")
 
 # ============================================================================
 # SIDEBAR — GLOBAL FILTERS
 # ============================================================================
-st.sidebar.header("📊 Filters")
+st.sidebar.header("Filters")
 
 # Review Type Multiselect
 review_types = st.sidebar.multiselect(
@@ -68,7 +64,7 @@ if "cabin_flown" in df.columns:
         help="Only applies to airline reviews"
     )
 else:
-    st.sidebar.info("ℹ️ Cabin Class filter unavailable in consolidated view. Use airline_clean.csv for detailed analysis.")
+    st.sidebar.info("Cabin Class filter unavailable in consolidated view. Use airline_clean.csv for detailed analysis.")
 
 # Traveller Type
 type_traveller = []
@@ -81,7 +77,7 @@ if "type_traveller" in df.columns:
         help="Filter by traveller type (sparse data)"
     )
 else:
-    st.sidebar.info("ℹ️ Traveller Type filter unavailable in consolidated view.")
+    st.sidebar.info("Traveller Type filter unavailable in consolidated view.")
 
 # Reviewer Country
 country_options = sorted([x for x in df["author_country"].dropna().unique() if pd.notna(x)])
@@ -114,7 +110,7 @@ filtered_data = apply_global_filters(
 # ============================================================================
 # KPI STRIP
 # ============================================================================
-st.subheader("📈 Dashboard Overview")
+st.subheader("Dashboard Overview")
 col1, col2, col3, col4 = st.columns(4)
 
 kpis = calculate_kpis(filtered_data)
@@ -130,24 +126,7 @@ with col4:
 
 st.divider()
 
-# ============================================================================
-# CHOROPLETH MAP
-# ============================================================================
-st.subheader("🗺️ Reviewer Geographic Distribution")
-
 if len(filtered_data) > 0:
-    fig = build_choropleth(filtered_data, choropleth_metric)
-    if fig:
-        st.plotly_chart(fig, width='stretch')
-
-    # ============================================================================
-    # TOP-15 COUNTRIES TABLE
-    # ============================================================================
-    st.subheader("📊 Top 15 Reviewer Countries")
-
-    top15 = build_top15_table(filtered_data)
-    if not top15.empty:
-        st.dataframe(top15, width='stretch', hide_index=True)
-
+    build_choropleth(filtered_data, choropleth_metric)
 else:
-    st.warning("⚠️ No data matches the selected filters. Try adjusting the filter criteria.")
+    st.warning("No data matches the selected filters. Try adjusting the filter criteria.")
