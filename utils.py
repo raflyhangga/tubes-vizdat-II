@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 # ============================================================================
 # CONSTANTS
@@ -22,17 +23,30 @@ METRIC_COL = {
     "Recommendation Rate (%)": "recommendation_rate",
 }
 
+DATA_DIR = Path("data/cleaned")
+REVIEW_SOURCE_FILES = [
+    ("airline", "airline_clean.csv", "airline_name_clean"),
+    ("airport", "airport_clean.csv", "airport_name_clean"),
+    ("lounge", "lounge_clean.csv", "lounge_name"),
+    ("seat", "seat_clean.csv", "airline_name_clean"),
+]
+
 # ============================================================================
 # DATA LOADING
 # ============================================================================
 @st.cache_data
 def load_data() -> pd.DataFrame:
-    """Load and clean the consolidated reviews dataset."""
-    df = pd.read_csv(
-        "data/cleaned/reviews_consolidated.csv",
-        parse_dates=["date"]
-    )
-    df["author_country"] = df["author_country"].replace(COUNTRY_NAME_MAP)
+    """Load and clean the full reviews dataset with category-specific fields."""
+    frames = []
+
+    for review_type, filename, entity_column in REVIEW_SOURCE_FILES:
+        frame = pd.read_csv(DATA_DIR / filename, parse_dates=["date"])
+        frame["review_type"] = review_type
+        frame["entity_name"] = frame[entity_column] if entity_column in frame.columns else pd.NA
+        frame["author_country"] = frame["author_country"].replace(COUNTRY_NAME_MAP)
+        frames.append(frame)
+
+    df = pd.concat(frames, ignore_index=True, sort=False)
     df = df[df["author_country"].notna() & (df["author_country"].str.strip() != "")]
     return df
 
@@ -63,11 +77,11 @@ def apply_global_filters(
         (filtered["review_year"] <= year_range[1])
     ]
 
-    # Cabin flown filter (only applies to airline reviews and if column exists)
-    if cabin_flown_list and "airline" in review_type_list and "cabin_flown" in filtered.columns:
+    # Cabin flown filter
+    if cabin_flown_list and "cabin_flown" in filtered.columns:
         filtered = filtered[filtered["cabin_flown"].isin(cabin_flown_list)]
 
-    # Traveller type filter (only if column exists)
+    # Traveller type filter
     if type_traveller_list and "type_traveller" in filtered.columns:
         filtered = filtered[filtered["type_traveller"].isin(type_traveller_list)]
 
