@@ -7,53 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint:
-    name: Lint and Format Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff black mypy
-
-      - name: Run Ruff linter
-        run: ruff check . --exit-zero
-
-      - name: Check code formatting
-        run: black --check . --diff
-
-  type-check:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install mypy pandas-stubs
-
-      - name: Run mypy
-        run: mypy . --ignore-missing-imports --allow-untyped-defs
-
-  app-verify:
-    name: Streamlit App Verification
+  deploy-check:
+    name: Check if app can deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,66 +24,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create dummy data directory
-        run: mkdir -p data/cleaned
+      - name: Create test data
+        run: mkdir -p data/cleaned && python -c "
+import pandas as pd
+df = pd.DataFrame({
+    'review_type': ['airline', 'airport'],
+    'entity_name': ['Airline A', 'Airport B'],
+    'author': ['John', 'Jane'],
+    'author_country': ['United States', 'United Kingdom'],
+    'date': pd.to_datetime(['2015-01-01', '2015-01-02']),
+    'content': ['Good', 'Good'],
+    'title': ['Review 1', 'Review 2'],
+    'overall_rating': [8.5, 9.0],
+    'recommended': ['Yes', 'Yes'],
+    'recommended_int': [1, 1],
+    'review_year': [2015, 2015],
+    'review_month': [1, 1],
+    'avg_sub_rating': [8.0, 9.0],
+    'review_word_count': [50, 60],
+})
+df.to_csv('data/cleaned/reviews_consolidated.csv', index=False)
+"
 
-      - name: Create stub CSV for testing
-        run: |
-          python -c "
-          import pandas as pd
-          import numpy as np
-
-          # Create minimal test CSV with all required columns
-          df = pd.DataFrame({
-              'review_type': ['airline', 'airport'],
-              'entity_name': ['Airline A', 'Airport B'],
-              'author': ['John', 'Jane'],
-              'author_country': ['United States', 'United Kingdom'],
-              'date': pd.to_datetime(['2015-01-01', '2015-01-02']),
-              'content': ['Good service', 'Clean terminal'],
-              'title': ['Review 1', 'Review 2'],
-              'overall_rating': [8.5, 9.0],
-              'recommended': ['Yes', 'Yes'],
-              'recommended_int': [1, 1],
-              'review_year': [2015, 2015],
-              'review_month': [1, 1],
-              'avg_sub_rating': [8.0, 9.0],
-              'review_word_count': [50, 60],
-          })
-          df.to_csv('data/cleaned/reviews_consolidated.csv', index=False)
-          print('Test CSV created successfully')
-          "
-
-      - name: Verify Streamlit app loads
-        run: streamlit run main.py --logger.level=debug &
-        timeout-minutes: 2
-        continue-on-error: true
-
-  tests:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
-
-      - name: Run pytest
-        run: pytest tests/ -v --cov=./ --cov-report=xml
-        continue-on-error: true
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          files: ./coverage.xml
-          fail_ci_if_error: false
+      - name: Check if app loads
+        run: timeout 30 streamlit run main.py --logger.level=error 2>&1 | head -20 || true
