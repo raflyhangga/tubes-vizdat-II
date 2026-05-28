@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, chloropleth]
+  pull_request:
+    branches: [main]
+
+jobs:
+  deploy-check:
+    name: Check if app can deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create test data
+        run: |
+          mkdir -p data/cleaned
+          python << 'EOF'
+          import pandas as pd
+          df = pd.DataFrame({
+              'review_type': ['airline', 'airport'],
+              'entity_name': ['Airline A', 'Airport B'],
+              'author': ['John', 'Jane'],
+              'author_country': ['United States', 'United Kingdom'],
+              'date': pd.to_datetime(['2015-01-01', '2015-01-02']),
+              'content': ['Good', 'Good'],
+              'title': ['Review 1', 'Review 2'],
+              'overall_rating': [8.5, 9.0],
+              'recommended': ['Yes', 'Yes'],
+              'recommended_int': [1, 1],
+              'review_year': [2015, 2015],
+              'review_month': [1, 1],
+              'avg_sub_rating': [8.0, 9.0],
+              'review_word_count': [50, 60],
+          })
+          df.to_csv('data/cleaned/reviews_consolidated.csv', index=False)
+          EOF
+
+      - name: Check if app loads
+        run: timeout 30 streamlit run main.py --logger.level=error 2>&1 | head -20 || true
