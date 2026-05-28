@@ -65,6 +65,9 @@ def apply_global_filters(
     Apply all sidebar filters to the dataframe.
     Returns a filtered copy ready for aggregation into any chart.
     """
+    if not review_type_list:
+        return df.iloc[0:0].copy()
+
     filtered = df.copy()
 
     # Review type filter
