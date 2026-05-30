@@ -7,6 +7,7 @@ from utils import (
     compute_composite_scores,
     get_available_countries,
     slug_to_display,
+    triple_range_slider,
 )
 from charts.podium import build_podium
 
@@ -14,14 +15,11 @@ from charts.podium import build_podium
 defaults = {
     "filter_country": None,
     "filter_cabin": ["Economy", "Business Class", "Premium Economy", "First Class"],
-    "filter_year": (2004, 2015),
-    "filter_include_no_year": True,
     "score_weights": {
-        "seat": 0.2,
-        "cabin": 0.2,
-        "food": 0.2,
-        "entertainment": 0.2,
-        "value": 0.2,
+        "seat": 0.25,
+        "cabin": 0.25,
+        "food": 0.25,
+        "entertainment": 0.25,
     },
     "results_visible": False,
     "selected_airline": None,
@@ -40,79 +38,63 @@ st.caption(
 )
 
 # FILTER SECTION
-with st.container():
-    col1, col2 = st.columns(2)
+col1, col2 = st.columns(2)
 
-    with col1:
-        countries = get_available_countries()
-        selected_country = st.selectbox(
-            "Negara Asal Maskapai",
-            options=["(Semua negara)"] + countries,
-            index=0,
-            help="Filter maskapai berdasarkan negara asal mereka",
-        )
-        filter_country = (
-            None if selected_country == "(Semua negara)" else selected_country
-        )
+with col1:
+    countries = get_available_countries()
+    selected_country = st.selectbox(
+        "Negara Asal Maskapai",
+        options=["(Semua negara)"] + countries,
+        index=0,
+        help="Filter maskapai berdasarkan negara asal mereka",
+    )
+    filter_country = (
+        None if selected_country == "(Semua negara)" else selected_country
+    )
 
-        cabin_options = [
-            "Economy",
-            "Business Class",
-            "Premium Economy",
-            "First Class",
-        ]
-        selected_cabins = st.multiselect(
-            "Kelas Kabin",
-            options=cabin_options,
-            default=st.session_state["filter_cabin"],
-        )
-
-    with col2:
-        year_range = st.slider(
-            "Rentang Tahun Ulasan",
-            min_value=2002,
-            max_value=2015,
-            value=st.session_state["filter_year"],
-            help="Filter ulasan berdasarkan tahun publikasi",
-        )
-        include_no_year = st.checkbox(
-            "Sertakan ulasan tanpa tanggal (61% dari data)",
-            value=st.session_state["filter_include_no_year"],
-            help="Banyak ulasan tidak memiliki tahun publikasi. Centang untuk menyertakannya.",
-        )
+with col2:
+    cabin_options = [
+        "Economy",
+        "Business Class",
+        "Premium Economy",
+        "First Class",
+    ]
+    selected_cabins = st.multiselect(
+        "Kelas Kabin",
+        options=cabin_options,
+        default=st.session_state["filter_cabin"],
+    )
 
 # WEIGHT SLIDERS
 st.markdown("### Seberapa penting kriteria ini bagimu?")
-st.caption("Geser bobot untuk menyesuaikan skor komposit. Total harus 100%.")
 
-wcol1, wcol2, wcol3, wcol4, wcol5 = st.columns(5)
-weight_inputs = {}
-slider_labels = {
-    "seat": "Kenyamanan Kursi",
-    "cabin": "Layanan Kabin",
-    "food": "Makanan & Minuman",
-    "entertainment": "Hiburan",
-    "value": "Nilai Uang",
+current_weights = st.session_state["score_weights"]
+default_point_1 = int(current_weights["seat"] * 100)
+default_point_2 = default_point_1 + int(current_weights["cabin"] * 100)
+default_point_3 = default_point_2 + int(current_weights["food"] * 100)
+
+slider_result = triple_range_slider(
+    label="",
+    default_points=(default_point_1, default_point_2, default_point_3)
+)
+
+ranges = slider_result.get("ranges", {})
+weight_inputs = {
+    "seat": ranges.get("var_1", 25),
+    "cabin": ranges.get("var_2", 25),
+    "food": ranges.get("var_3", 25),
+    "entertainment": ranges.get("var_4", 25),
 }
-slider_cols = [wcol1, wcol2, wcol3, wcol4, wcol5]
-for (key, label), col in zip(slider_labels.items(), slider_cols):
-    with col:
-        weight_inputs[key] = st.slider(
-            label,
-            min_value=0,
-            max_value=100,
-            value=int(st.session_state["score_weights"][key] * 100),
-            step=5,
-            key=f"w_{key}",
-        )
+
+# Display weight breakdown
+criteria_labels = ["Kenyamanan Kursi", "Layanan Kabin", "Makanan & Minuman", "Hiburan"]
+weight_cols = st.columns(4)
+for i, label in enumerate(criteria_labels):
+    with weight_cols[i]:
+        st.metric(label, f"{weight_inputs[list(weight_inputs.keys())[i]]}%")
 
 total_weight = sum(weight_inputs.values())
-if total_weight != 100:
-    st.warning(f"Total bobot saat ini: {total_weight}%. Harus tepat 100% untuk melanjutkan.")
-    apply_disabled = True
-else:
-    st.success(f"Total bobot: {total_weight}% — siap digunakan.")
-    apply_disabled = False
+apply_disabled = total_weight != 100
 
 # APPLY BUTTON
 if st.button("Terapkan Filter", type="primary", disabled=apply_disabled):
@@ -121,8 +103,6 @@ if st.button("Terapkan Filter", type="primary", disabled=apply_disabled):
         st.session_state["score_weights"] = normalized_weights
         st.session_state["filter_country"] = filter_country
         st.session_state["filter_cabin"] = selected_cabins
-        st.session_state["filter_year"] = year_range
-        st.session_state["filter_include_no_year"] = include_no_year
         st.session_state["results_visible"] = True
 
 # RESULTS SECTION
@@ -147,8 +127,8 @@ if st.session_state["results_visible"]:
         df=df,
         weights=st.session_state["score_weights"],
         cabin_filter=st.session_state["filter_cabin"],
-        year_range=st.session_state["filter_year"],
-        include_no_year=st.session_state["filter_include_no_year"],
+        year_range=(2002, 2015),
+        include_no_year=True,
         country_filter=st.session_state["filter_country"],
     )
 
