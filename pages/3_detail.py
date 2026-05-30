@@ -67,32 +67,48 @@ year_max = (
     if airline_df["review_year"].notna().any()
     else "N/A"
 )
+val_mean = airline_df["value_money_rating"].mean()
 
 # HEADER
 st.markdown(f"## {display_name}")
 st.caption(f"{home_country} · {total_reviews:,} ulasan · {year_min}–{year_max}")
 
-if ranking_score is not None:
-    st.markdown(score_pill_html(float(ranking_score)), unsafe_allow_html=True)
-
-st.divider()
-
-col1, col2, col3, col4 = st.columns(4)
-sub_means = get_airline_subrating_means(airline_df, SUB_RATING_COLS)
-kpi_data = [
-    ("Kenyamanan Kursi", sub_means.get("seat_comfort_rating")),
-    ("Layanan Kabin", sub_means.get("cabin_staff_rating")),
-    ("Makanan & Minuman", sub_means.get("food_beverages_rating")),
-    ("Hiburan", sub_means.get("inflight_entertainment_rating")),
-]
-for col, (label, val) in zip([col1, col2, col3, col4], kpi_data):
-    with col:
-        st.markdown(kpi_circle_html(label, val), unsafe_allow_html=True)
+summary_cols = st.columns([1, 1, 1, 1], gap="small")
+with summary_cols[0]:
+    if ranking_score is not None:
+        st.markdown(score_pill_html(float(ranking_score), label="Skor Komposit"), unsafe_allow_html=True)
+with summary_cols[1]:
+    st.markdown(recommendation_callout_html(summary["pct_recommended"]), unsafe_allow_html=True)
+with summary_cols[2]:
+    st.markdown(
+        f"""
+        <div style='padding:1rem;border-radius:1rem;background:rgba(255,255,255,0.06);min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;'>
+            <div style='font-size:2.4rem;font-weight:800;color:#ffffff;'>{total_reviews:,}</div>
+            <div style='font-size:0.95rem;color:#cfd8ff;margin-top:0.3rem;'>Total ulasan</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+with summary_cols[3]:
+    st.markdown(
+        f"""
+        <div style='padding:1rem;border-radius:1rem;background:rgba(255,255,255,0.06);min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;'>
+            <div style='font-size:2.4rem;font-weight:800;color:#ffffff;'>{val_mean:.2f}</div>
+            <div style='font-size:0.95rem;color:#cfd8ff;margin-top:0.3rem;'>Nilai Uang</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Bandingkan dengan maskapai lain →", type="primary", use_container_width=True):
+        st.session_state["page4_country"] = home_country
+        st.session_state["compare_airlines"] = [slug]
+        st.switch_page("pages/4_comparison.py")
 
 st.divider()
 
 # ROW 2: Radar + Histogram
-radar_col, hist_col = st.columns(2)
+radar_col, hist_col = st.columns(2, gap="small")
+sub_means = get_airline_subrating_means(airline_df, SUB_RATING_COLS)
 
 with radar_col:
     st.markdown("**Profil Rating Sub-Dimensi**")
@@ -109,20 +125,15 @@ with hist_col:
 
 st.divider()
 
-# ROW 3: Recommendation + Value KPI + Button
-r3col1, r3col2, r3col3 = st.columns([2, 1, 1])
-
-with r3col1:
-    pct_rec = summary["pct_recommended"]
-    st.markdown(recommendation_callout_html(pct_rec), unsafe_allow_html=True)
-
-with r3col2:
-    val_mean = airline_df["value_money_rating"].mean()
-    st.markdown(kpi_circle_html("Nilai Uang", val_mean), unsafe_allow_html=True)
-
-with r3col3:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    if st.button("Bandingkan dengan maskapai lain →", type="primary", use_container_width=True):
-        st.session_state["page4_country"] = home_country
-        st.session_state["compare_airlines"] = [slug]
-        st.switch_page("pages/4_comparison.py")
+# ROW 3: Subrating KPI
+col1, col2, col3, col4 = st.columns(4, gap="small")
+sub_means = get_airline_subrating_means(airline_df, SUB_RATING_COLS)
+kpi_data = [
+    ("Kenyamanan Kursi", sub_means.get("seat_comfort_rating")),
+    ("Layanan Kabin", sub_means.get("cabin_staff_rating")),
+    ("Makanan & Minuman", sub_means.get("food_beverages_rating")),
+    ("Hiburan", sub_means.get("inflight_entertainment_rating")),
+]
+for col, (label, val) in zip([col1, col2, col3, col4], kpi_data):
+    with col:
+        st.markdown(kpi_circle_html(label, val), unsafe_allow_html=True)

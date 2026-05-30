@@ -5,9 +5,9 @@ from utils import (
     load_airline_data,
     SUB_RATING_COLS,
     INDUSTRY_BENCHMARK,
+    get_airline_country,
     get_airline_country_options,
     slug_to_display,
-    AIRLINE_COUNTRY_MAP,
     get_airline_subrating_means,
 )
 from charts.radar import build_radar
@@ -57,18 +57,11 @@ chosen_country = st.selectbox(
 if chosen_country == "(Semua negara)":
     country_airlines = df["airline_name"].unique().tolist()
 else:
-    if chosen_country == "Other":
-        country_airlines = [
-            a
-            for a in df["airline_name"].unique()
-            if a not in AIRLINE_COUNTRY_MAP
-        ]
-    else:
-        country_airlines = [
-            a
-            for a in df["airline_name"].unique()
-            if AIRLINE_COUNTRY_MAP.get(a) == chosen_country
-        ]
+    country_airlines = [
+        a
+        for a in df["airline_name"].unique()
+        if get_airline_country(a) == chosen_country
+    ]
 
 # Sort by review count
 vc = df["airline_name"].value_counts()

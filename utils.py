@@ -135,122 +135,6 @@ RADAR_LABELS = {
     "cabin_staff_rating": "Cabin Staff",
     "food_beverages_rating": "Food & Beverages",
     "inflight_entertainment_rating": "Entertainment",
-    "value_money_rating": "Value for Money",
-}
-
-AIRLINE_COUNTRY_MAP = {
-    "spirit-airlines": "United States",
-    "united-airlines": "United States",
-    "american-airlines": "United States",
-    "delta-air-lines": "United States",
-    "frontier-airlines": "United States",
-    "southwest-airlines": "United States",
-    "jetblue-airways": "United States",
-    "us-airways": "United States",
-    "hawaiian-airlines": "United States",
-    "alaska-airlines": "United States",
-    "virgin-america": "United States",
-    "allegiant-air": "United States",
-    "british-airways": "United Kingdom",
-    "virgin-atlantic-airways": "United Kingdom",
-    "easyjet": "United Kingdom",
-    "thomson-airways": "United Kingdom",
-    "monarch-airlines": "United Kingdom",
-    "flybe": "United Kingdom",
-    "thomas-cook-airlines": "United Kingdom",
-    "jet2-com": "United Kingdom",
-    "air-canada-rouge": "Canada",
-    "air-canada": "Canada",
-    "sunwing-airlines": "Canada",
-    "air-transat": "Canada",
-    "porter-airlines": "Canada",
-    "jet-airways": "India",
-    "air-india": "India",
-    "indigo-airlines": "India",
-    "emirates": "United Arab Emirates",
-    "etihad-airways": "United Arab Emirates",
-    "lufthansa": "Germany",
-    "air-berlin": "Germany",
-    "condor-airlines": "Germany",
-    "germanwings": "Germany",
-    "ryanair": "Ireland",
-    "aer-lingus": "Ireland",
-    "qantas-airways": "Australia",
-    "virgin-australia": "Australia",
-    "jetstar-airways": "Australia",
-    "tigerair": "Australia",
-    "turkish-airlines": "Turkey",
-    "pegasus-airlines": "Turkey",
-    "cathay-pacific-airways": "Hong Kong",
-    "dragonair": "Hong Kong",
-    "qatar-airways": "Qatar",
-    "malaysia-airlines": "Malaysia",
-    "airasia": "Malaysia",
-    "airasia-x": "Malaysia",
-    "norwegian": "Norway",
-    "singapore-airlines": "Singapore",
-    "silkair": "Singapore",
-    "scoot": "Singapore",
-    "tap-portugal": "Portugal",
-    "finnair": "Finland",
-    "klm-royal-dutch-airlines": "Netherlands",
-    "iberia": "Spain",
-    "vueling-airlines": "Spain",
-    "air-europa": "Spain",
-    "thai-airways": "Thailand",
-    "bangkok-airways": "Thailand",
-    "garuda-indonesia": "Indonesia",
-    "lion-air": "Indonesia",
-    "batik-air": "Indonesia",
-    "air-france": "France",
-    "swiss-international-air-lines": "Switzerland",
-    "air-new-zealand": "New Zealand",
-    "korean-air": "South Korea",
-    "asiana-airlines": "South Korea",
-    "vietnam-airlines": "Vietnam",
-    "philippine-airlines": "Philippines",
-    "cebu-pacific": "Philippines",
-    "austrian-airlines": "Austria",
-    "icelandair": "Iceland",
-    "lan-airlines": "Chile",
-    "tam-airlines": "Brazil",
-    "avianca": "Colombia",
-    "aeromexico": "Mexico",
-    "aerolineas-argentinas": "Argentina",
-    "copa-airlines": "Panama",
-    "ana-all-nippon-airways": "Japan",
-    "japan-airlines": "Japan",
-    "south-african-airways": "South Africa",
-    "china-southern-airlines": "China",
-    "china-eastern-airlines": "China",
-    "air-china": "China",
-    "hainan-airlines": "China",
-    "aeroflot-russian-airlines": "Russia",
-    "ethiopian-airlines": "Ethiopia",
-    "kenya-airways": "Kenya",
-    "brussels-airlines": "Belgium",
-    "eva-air": "Taiwan",
-    "china-airlines": "Taiwan",
-    "egyptair": "Egypt",
-    "sas-scandinavian-airlines": "Sweden",
-    "aegean-airlines": "Greece",
-    "el-al-israel-airlines": "Israel",
-    "gulf-air": "Bahrain",
-    "oman-air": "Oman",
-    "kuwait-airways": "Kuwait",
-    "royal-jordanian-airlines": "Jordan",
-    "saudi-arabian-airlines": "Saudi Arabia",
-    "air-mauritius": "Mauritius",
-    "royal-air-maroc": "Morocco",
-    "pia-pakistan-international-airlines": "Pakistan",
-    "lot-polish-airlines": "Poland",
-    "airbaltic": "Latvia",
-    "wizz-air": "Hungary",
-    "ukraine-international-airlines": "Ukraine",
-    "air-astana": "Kazakhstan",
-    "fiji-airways": "Fiji",
-    "srilankan-airlines": "Sri Lanka",
-    "royal-brunei-airlines": "Brunei",
 }
 
 DISPLAY_NAME_OVERRIDES = {
@@ -272,23 +156,46 @@ def slug_to_display(slug: str) -> str:
     return slug.replace("-", " ").title()
 
 
+@st.cache_data
+def _load_airline_country_map() -> dict:
+    """Build a slug-to-country map from the airline_clean dataset."""
+    df = load_airline_data()
+    if "airline_name" not in df.columns or "airline_country" not in df.columns:
+        return {}
+
+    cleaned = (
+        df[["airline_name", "airline_country"]]
+        .dropna(subset=["airline_name", "airline_country"])
+        .drop_duplicates(subset=["airline_name"], keep="first")
+    )
+    return cleaned.set_index("airline_name")["airline_country"].astype(str).to_dict()
+
+
 def get_airline_country(slug: str) -> str:
     """Get the country of origin for an airline slug."""
-    return AIRLINE_COUNTRY_MAP.get(slug, "Other")
+    airline_country_map = _load_airline_country_map()
+    return airline_country_map.get(slug, "Other")
 
 
 def get_available_countries() -> list:
-    """Return sorted list of unique countries, plus 'Other'."""
-    return sorted(set(AIRLINE_COUNTRY_MAP.values())) + ["Other"]
+    """Return sorted list of unique countries found in the airline dataset."""
+    df = load_airline_data()
+    if "airline_country" not in df.columns:
+        return ["Other"]
+    countries = sorted(df["airline_country"].dropna().astype(str).unique().tolist())
+    if "Other" not in countries:
+        countries.append("Other")
+    return countries
 
 
 def get_airline_country_options(df: pd.DataFrame) -> list:
-    """Return sorted country options inferred from airline data and the airline map."""
-    values = set()
-    if "airline_country" in df.columns:
-        values.update(df["airline_country"].dropna().astype(str).tolist())
-    values.update(v for v in AIRLINE_COUNTRY_MAP.values() if isinstance(v, str) and v)
-    return sorted(values)
+    """Return sorted country options inferred from airline data."""
+    if "airline_country" not in df.columns:
+        return ["Other"]
+    values = sorted(df["airline_country"].dropna().astype(str).unique().tolist())
+    if "Other" not in values:
+        values.append("Other")
+    return values
 
 
 def normalize_recommendation_rate(recommended_series: pd.Series) -> float:

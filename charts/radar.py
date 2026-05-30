@@ -5,14 +5,12 @@ RADAR_AXIS_LABELS = [
     "Cabin Staff",
     "Food & Beverages",
     "Entertainment",
-    "Value for Money",
 ]
 RADAR_COL_KEYS = [
     "seat_comfort_rating",
     "cabin_staff_rating",
     "food_beverages_rating",
     "inflight_entertainment_rating",
-    "value_money_rating",
 ]
 
 AIRLINE_COLORS = [
