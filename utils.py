@@ -110,3 +110,264 @@ def calculate_kpis(filtered_data: pd.DataFrame) -> dict:
         "pct_recommended": pct_recommended,
         "unique_entities": unique_entities,
     }
+
+# ============================================================================
+# AIRLINE-SPECIFIC CONSTANTS & FUNCTIONS (Pages 1-4)
+# ============================================================================
+SUB_RATING_COLS = [
+    "seat_comfort_rating",
+    "cabin_staff_rating",
+    "food_beverages_rating",
+    "inflight_entertainment_rating",
+    "value_money_rating",
+]
+
+INDUSTRY_BENCHMARK = {
+    "seat_comfort_rating": 3.115,
+    "cabin_staff_rating": 3.333,
+    "food_beverages_rating": 2.886,
+    "inflight_entertainment_rating": 2.549,
+    "value_money_rating": 3.180,
+}
+
+RADAR_LABELS = {
+    "seat_comfort_rating": "Seat Comfort",
+    "cabin_staff_rating": "Cabin Staff",
+    "food_beverages_rating": "Food & Beverages",
+    "inflight_entertainment_rating": "Entertainment",
+    "value_money_rating": "Value for Money",
+}
+
+AIRLINE_COUNTRY_MAP = {
+    "spirit-airlines": "United States",
+    "united-airlines": "United States",
+    "american-airlines": "United States",
+    "delta-air-lines": "United States",
+    "frontier-airlines": "United States",
+    "southwest-airlines": "United States",
+    "jetblue-airways": "United States",
+    "us-airways": "United States",
+    "hawaiian-airlines": "United States",
+    "alaska-airlines": "United States",
+    "virgin-america": "United States",
+    "allegiant-air": "United States",
+    "british-airways": "United Kingdom",
+    "virgin-atlantic-airways": "United Kingdom",
+    "easyjet": "United Kingdom",
+    "thomson-airways": "United Kingdom",
+    "monarch-airlines": "United Kingdom",
+    "flybe": "United Kingdom",
+    "thomas-cook-airlines": "United Kingdom",
+    "jet2-com": "United Kingdom",
+    "air-canada-rouge": "Canada",
+    "air-canada": "Canada",
+    "sunwing-airlines": "Canada",
+    "air-transat": "Canada",
+    "porter-airlines": "Canada",
+    "jet-airways": "India",
+    "air-india": "India",
+    "indigo-airlines": "India",
+    "emirates": "United Arab Emirates",
+    "etihad-airways": "United Arab Emirates",
+    "lufthansa": "Germany",
+    "air-berlin": "Germany",
+    "condor-airlines": "Germany",
+    "germanwings": "Germany",
+    "ryanair": "Ireland",
+    "aer-lingus": "Ireland",
+    "qantas-airways": "Australia",
+    "virgin-australia": "Australia",
+    "jetstar-airways": "Australia",
+    "tigerair": "Australia",
+    "turkish-airlines": "Turkey",
+    "pegasus-airlines": "Turkey",
+    "cathay-pacific-airways": "Hong Kong",
+    "dragonair": "Hong Kong",
+    "qatar-airways": "Qatar",
+    "malaysia-airlines": "Malaysia",
+    "airasia": "Malaysia",
+    "airasia-x": "Malaysia",
+    "norwegian": "Norway",
+    "singapore-airlines": "Singapore",
+    "silkair": "Singapore",
+    "scoot": "Singapore",
+    "tap-portugal": "Portugal",
+    "finnair": "Finland",
+    "klm-royal-dutch-airlines": "Netherlands",
+    "iberia": "Spain",
+    "vueling-airlines": "Spain",
+    "air-europa": "Spain",
+    "thai-airways": "Thailand",
+    "bangkok-airways": "Thailand",
+    "garuda-indonesia": "Indonesia",
+    "lion-air": "Indonesia",
+    "batik-air": "Indonesia",
+    "air-france": "France",
+    "swiss-international-air-lines": "Switzerland",
+    "air-new-zealand": "New Zealand",
+    "korean-air": "South Korea",
+    "asiana-airlines": "South Korea",
+    "vietnam-airlines": "Vietnam",
+    "philippine-airlines": "Philippines",
+    "cebu-pacific": "Philippines",
+    "austrian-airlines": "Austria",
+    "icelandair": "Iceland",
+    "lan-airlines": "Chile",
+    "tam-airlines": "Brazil",
+    "avianca": "Colombia",
+    "aeromexico": "Mexico",
+    "aerolineas-argentinas": "Argentina",
+    "copa-airlines": "Panama",
+    "ana-all-nippon-airways": "Japan",
+    "japan-airlines": "Japan",
+    "south-african-airways": "South Africa",
+    "china-southern-airlines": "China",
+    "china-eastern-airlines": "China",
+    "air-china": "China",
+    "hainan-airlines": "China",
+    "aeroflot-russian-airlines": "Russia",
+    "ethiopian-airlines": "Ethiopia",
+    "kenya-airways": "Kenya",
+    "brussels-airlines": "Belgium",
+    "eva-air": "Taiwan",
+    "china-airlines": "Taiwan",
+    "egyptair": "Egypt",
+    "sas-scandinavian-airlines": "Sweden",
+    "aegean-airlines": "Greece",
+    "el-al-israel-airlines": "Israel",
+    "gulf-air": "Bahrain",
+    "oman-air": "Oman",
+    "kuwait-airways": "Kuwait",
+    "royal-jordanian-airlines": "Jordan",
+    "saudi-arabian-airlines": "Saudi Arabia",
+    "air-mauritius": "Mauritius",
+    "royal-air-maroc": "Morocco",
+    "pia-pakistan-international-airlines": "Pakistan",
+    "lot-polish-airlines": "Poland",
+    "airbaltic": "Latvia",
+    "wizz-air": "Hungary",
+    "ukraine-international-airlines": "Ukraine",
+    "air-astana": "Kazakhstan",
+    "fiji-airways": "Fiji",
+    "srilankan-airlines": "Sri Lanka",
+    "royal-brunei-airlines": "Brunei",
+}
+
+DISPLAY_NAME_OVERRIDES = {
+    "klm-royal-dutch-airlines": "KLM Royal Dutch Airlines",
+    "ana-all-nippon-airways": "ANA All Nippon Airways",
+    "tap-portugal": "TAP Air Portugal",
+    "sas-scandinavian-airlines": "SAS Scandinavian Airlines",
+    "pia-pakistan-international-airlines": "PIA Pakistan International Airlines",
+    "eva-air": "EVA Air",
+    "lan-airlines": "LAN Airlines",
+    "tam-airlines": "TAM Airlines",
+}
+
+
+def slug_to_display(slug: str) -> str:
+    """Convert airline slug to human-readable display name."""
+    if slug in DISPLAY_NAME_OVERRIDES:
+        return DISPLAY_NAME_OVERRIDES[slug]
+    return slug.replace("-", " ").title()
+
+
+def get_airline_country(slug: str) -> str:
+    """Get the country of origin for an airline slug."""
+    return AIRLINE_COUNTRY_MAP.get(slug, "Other")
+
+
+def get_available_countries() -> list:
+    """Return sorted list of unique countries, plus 'Other'."""
+    return sorted(set(AIRLINE_COUNTRY_MAP.values())) + ["Other"]
+
+
+@st.cache_data
+def load_airline_data() -> pd.DataFrame:
+    """Load airline_clean.csv with appropriate dtypes."""
+    df = pd.read_csv(
+        "data/cleaned/airline_clean.csv",
+        dtype={
+            "airline_name": "string",
+            "cabin_flown": "string",
+            "type_traveller": "string",
+            "author_country": "string",
+        },
+    )
+    return df
+
+
+def compute_composite_scores(
+    df: pd.DataFrame,
+    weights: dict,
+    cabin_filter: list,
+    year_range: tuple,
+    include_no_year: bool,
+    country_filter: str | None,
+) -> pd.DataFrame:
+    """
+    Compute per-airline composite scores with weighted sub-ratings.
+    Applies filters, imputes nulls with global means, and returns ranked DataFrame.
+    """
+    data = df.copy()
+
+    # Cabin filter (keep nulls)
+    if cabin_filter:
+        data = data[
+            data["cabin_flown"].isin(cabin_filter) | data["cabin_flown"].isna()
+        ]
+
+    # Year filter
+    if include_no_year:
+        year_mask = data["review_year"].isna() | (
+            (data["review_year"] >= year_range[0])
+            & (data["review_year"] <= year_range[1])
+        )
+    else:
+        year_mask = (data["review_year"] >= year_range[0]) & (
+            data["review_year"] <= year_range[1]
+        )
+    data = data[year_mask]
+
+    # Country filter (airline origin)
+    if country_filter:
+        data["_origin"] = data["airline_name"].map(get_airline_country)
+        data = data[data["_origin"] == country_filter]
+
+    if data.empty:
+        return pd.DataFrame()
+
+    # Null imputation with global means (pre-filter)
+    col_means = df[SUB_RATING_COLS].mean()
+    for col in SUB_RATING_COLS:
+        data[col] = data[col].fillna(col_means[col])
+
+    # Weighted composite per row
+    w = weights
+    data["_composite"] = (
+        w["seat"] * data["seat_comfort_rating"]
+        + w["cabin"] * data["cabin_staff_rating"]
+        + w["food"] * data["food_beverages_rating"]
+        + w["entertainment"] * data["inflight_entertainment_rating"]
+        + w["value"] * data["value_money_rating"]
+    )
+
+    # Aggregate per airline
+    agg = data.groupby("airline_name", as_index=False).agg(
+        composite_score=("_composite", "mean"),
+        review_count=("airline_name", "count"),
+        avg_overall_rating=("overall_rating", "mean"),
+        pct_recommended=("recommended_int", "mean"),
+        avg_seat_comfort=("seat_comfort_rating", "mean"),
+        avg_cabin_staff=("cabin_staff_rating", "mean"),
+        avg_food=("food_beverages_rating", "mean"),
+        avg_entertainment=("inflight_entertainment_rating", "mean"),
+        avg_value=("value_money_rating", "mean"),
+    )
+
+    agg["pct_recommended"] = (agg["pct_recommended"] * 100).round(1)
+    agg["composite_score"] = agg["composite_score"].round(3)
+    agg = agg.sort_values("composite_score", ascending=False).reset_index(drop=True)
+    agg["rank"] = agg.index + 1
+
+    return agg
