@@ -5,10 +5,10 @@ from utils import (
     load_airline_data,
     SUB_RATING_COLS,
     INDUSTRY_BENCHMARK,
-    get_available_countries,
+    get_airline_country_options,
     slug_to_display,
-    get_airline_country,
     AIRLINE_COUNTRY_MAP,
+    get_airline_subrating_means,
 )
 from charts.radar import build_radar
 from charts.boxplot import build_boxplot
@@ -42,7 +42,7 @@ st.title("Perbandingan Maskapai")
 # TOP FILTERS
 default_country = st.session_state.get("page4_country") or "United Kingdom"
 
-countries = get_available_countries()
+countries = get_airline_country_options(df)
 chosen_country = st.selectbox(
     "Negara Asal Maskapai",
     options=["(Semua negara)"] + countries,
@@ -107,7 +107,7 @@ else:
     # Compute per-airline sub-rating means for radar
     airlines_data = {}
     for slug in active_slugs:
-        sub = compare_df[compare_df["airline_name"] == slug][SUB_RATING_COLS].mean()
+        sub = get_airline_subrating_means(compare_df[compare_df["airline_name"] == slug], SUB_RATING_COLS)
         airlines_data[slug_to_display(slug)] = sub.to_dict()
 
     left_col, right_col = st.columns(2)

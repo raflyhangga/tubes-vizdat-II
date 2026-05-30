@@ -1,222 +1,217 @@
-import streamlit as st
+import html
+
 import pandas as pd
-import streamlit.components.v1 as components
+import streamlit as st
 
-from utils import (
-    load_airline_data,
-    compute_composite_scores,
-    get_available_countries,
-    slug_to_display,
+from ui_components import (
+    build_podium,
+    table_header_cell_html,
+    table_text_cell_html,
+    review_count_badge,
+    score_bar_html,
+    section_banner_html,
+    section_description_html,
+    section_hint_html,
+    thin_divider_html,
+    rank_pill_html,
 )
-from charts.podium import build_podium
+from utils import load_airline_data, slug_to_display
+from utils import aggregate_airline_scores, get_airline_country_options
 
-# Initialize session state
-defaults = {
-    "filter_country": None,
-    "filter_cabin": ["Economy", "Business Class", "Premium Economy", "First Class"],
-    "filter_year": (2004, 2015),
-    "filter_include_no_year": True,
-    "score_weights": {
-        "seat": 0.2,
-        "cabin": 0.2,
-        "food": 0.2,
-        "entertainment": 0.2,
-        "value": 0.2,
-    },
-    "results_visible": False,
+
+RATING_COLS = [
+    "seat_comfort_rating",
+    "cabin_staff_rating",
+    "food_beverages_rating",
+    "inflight_entertainment_rating",
+]
+
+RATING_LABELS = {
+    "seat_comfort_rating": "Seat Comfort",
+    "cabin_staff_rating": "Cabin Staff",
+    "food_beverages_rating": "Food & Beverages",
+    "inflight_entertainment_rating": "Entertainment",
+}
+
+DEFAULT_WEIGHT_BY_COL = {
+    "seat_comfort_rating": 0.25,
+    "cabin_staff_rating": 0.25,
+    "food_beverages_rating": 0.25,
+    "inflight_entertainment_rating": 0.25,
+}
+
+SESSION_DEFAULTS = {
+    "ranking_country": None,
+    "ranking_min_reviews": 30,
+    "ranking_weights": DEFAULT_WEIGHT_BY_COL,
     "selected_airline": None,
+    "selected_airline_score": None,
     "compare_airlines": [],
     "page4_country": None,
 }
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+
+for key, value in SESSION_DEFAULTS.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
+
+
+def _init_weights() -> dict:
+    current = st.session_state.get("ranking_weights") or {}
+    if all(col in current for col in RATING_COLS):
+        weights = {col: float(current[col]) for col in RATING_COLS}
+    else:
+        legacy = st.session_state.get("score_weights", {})
+        weights = {
+            "seat_comfort_rating": float(legacy.get("seat", DEFAULT_WEIGHT_BY_COL["seat_comfort_rating"])),
+            "cabin_staff_rating": float(legacy.get("cabin", DEFAULT_WEIGHT_BY_COL["cabin_staff_rating"])),
+            "food_beverages_rating": float(legacy.get("food", DEFAULT_WEIGHT_BY_COL["food_beverages_rating"])),
+            "inflight_entertainment_rating": float(legacy.get("entertainment", DEFAULT_WEIGHT_BY_COL["inflight_entertainment_rating"])),
+        }
+
+    total = sum(weights.values())
+    if total <= 0:
+        return DEFAULT_WEIGHT_BY_COL.copy()
+    return {col: value / total for col, value in weights.items()}
+
+
+def render_detail_button(airline_name: str, score: float, key: str) -> None:
+    if st.button("Detail →", key=key, use_container_width=True):
+        st.session_state["selected_airline"] = airline_name
+        st.session_state["selected_airline_score"] = float(score)
+        st.switch_page("pages/3_detail.py")
+
+
+st.set_page_config(page_title="Ranking Maskapai", page_icon="✈️", layout="wide")
 
 df = load_airline_data()
+weights = _init_weights()
+country_options = get_airline_country_options(df)
+selected_country_value = st.session_state.get("ranking_country")
+if selected_country_value not in country_options:
+    selected_country_value = None
 
-st.title("Temukan Maskapai Terbaik")
+min_reviews = int(st.session_state.get("ranking_min_reviews", 30))
+
+st.session_state["ranking_country"] = selected_country_value
+st.session_state["ranking_min_reviews"] = int(min_reviews)
+st.session_state["ranking_weights"] = weights
+
+st.title("Ranking Maskapai")
+country_label = selected_country_value or "Semua negara"
 st.caption(
-    "Sesuaikan preferensimu, lalu tekan 'Terapkan Filter' untuk melihat ranking."
+    f"Podium berada di kiri. Tabel lengkap dengan detail berada di kanan. Filter aktif: {country_label} · minimal {int(min_reviews)} review valid."
 )
 
-# FILTER SECTION
-with st.container():
-    col1, col2 = st.columns(2)
+active_weight_label = sorted(weights, key=lambda key: weights[key], reverse=True)[0]
+active_weight_text = RATING_LABELS[active_weight_label]
+weight_summary = " · ".join(
+    f"{RATING_LABELS[col]} {weights[col] * 100:.0f}%" for col in RATING_COLS
+)
 
-    with col1:
-        countries = get_available_countries()
-        selected_country = st.selectbox(
-            "Negara Asal Maskapai",
-            options=["(Semua negara)"] + countries,
-            index=0,
-            help="Filter maskapai berdasarkan negara asal mereka",
-        )
-        filter_country = (
-            None if selected_country == "(Semua negara)" else selected_country
-        )
+st.markdown(
+    section_banner_html(
+        primary_text=f"Kamu mementingkan {html.escape(active_weight_text.lower())} paling tinggi.",
+        secondary_text=(
+            "Skor komposit dihitung per baris dari bobot yang diwariskan, lalu dirata-ratakan per maskapai. "
+            f"Maskapai yang tampil wajib punya minimal {int(min_reviews)} review valid setelah filter negara diterapkan."
+        ),
+        tertiary_text=f"Bobot aktif: {html.escape(weight_summary)}",
+    ),
+    unsafe_allow_html=True,
+)
 
-        cabin_options = [
-            "Economy",
-            "Business Class",
-            "Premium Economy",
-            "First Class",
-        ]
-        selected_cabins = st.multiselect(
-            "Kelas Kabin",
-            options=cabin_options,
-            default=st.session_state["filter_cabin"],
-        )
+ranked_df = aggregate_airline_scores(
+    df=df,
+    rating_columns=RATING_COLS,
+    weights=weights,
+    group_columns=["airline_name"],
+    country_filter=selected_country_value,
+    min_reviews=int(min_reviews),
+)
 
-    with col2:
-        year_range = st.slider(
-            "Rentang Tahun Ulasan",
-            min_value=2002,
-            max_value=2015,
-            value=st.session_state["filter_year"],
-            help="Filter ulasan berdasarkan tahun publikasi",
-        )
-        include_no_year = st.checkbox(
-            "Sertakan ulasan tanpa tanggal (61% dari data)",
-            value=st.session_state["filter_include_no_year"],
-            help="Banyak ulasan tidak memiliki tahun publikasi. Centang untuk menyertakannya.",
-        )
+if ranked_df.empty:
+    st.warning("Tidak ada maskapai yang memenuhi filter negara dan batas minimum review valid.")
+    st.stop()
 
-# WEIGHT SLIDERS
-st.markdown("### Seberapa penting kriteria ini bagimu?")
-st.caption("Geser bobot untuk menyesuaikan skor komposit. Total harus 100%.")
+left_col, right_col = st.columns([1.05, 1.7], gap="large")
 
-wcol1, wcol2, wcol3, wcol4, wcol5 = st.columns(5)
-weight_inputs = {}
-slider_labels = {
-    "seat": "Kenyamanan Kursi",
-    "cabin": "Layanan Kabin",
-    "food": "Makanan & Minuman",
-    "entertainment": "Hiburan",
-    "value": "Nilai Uang",
-}
-slider_cols = [wcol1, wcol2, wcol3, wcol4, wcol5]
-for (key, label), col in zip(slider_labels.items(), slider_cols):
-    with col:
-        weight_inputs[key] = st.slider(
-            label,
-            min_value=0,
-            max_value=100,
-            value=int(st.session_state["score_weights"][key] * 100),
-            step=5,
-            key=f"w_{key}",
-        )
+top3 = ranked_df.head(3).copy()
+top3["display_name"] = top3["airline_name"].apply(slug_to_display)
 
-total_weight = sum(weight_inputs.values())
-if total_weight != 100:
-    st.warning(f"Total bobot saat ini: {total_weight}%. Harus tepat 100% untuk melanjutkan.")
-    apply_disabled = True
-else:
-    st.success(f"Total bobot: {total_weight}% — siap digunakan.")
-    apply_disabled = False
+with left_col:
+    st.markdown("**Podium Teratas**")
+    st.markdown(section_hint_html("Klik kartu atau tombol detail untuk membuka halaman maskapai."), unsafe_allow_html=True)
+    podium_html = build_podium(top3)
+    st.markdown(podium_html, unsafe_allow_html=True)
 
-# APPLY BUTTON
-if st.button("Terapkan Filter", type="primary", disabled=apply_disabled):
-    if total_weight == 100:
-        normalized_weights = {k: v / 100.0 for k, v in weight_inputs.items()}
-        st.session_state["score_weights"] = normalized_weights
-        st.session_state["filter_country"] = filter_country
-        st.session_state["filter_cabin"] = selected_cabins
-        st.session_state["filter_year"] = year_range
-        st.session_state["filter_include_no_year"] = include_no_year
-        st.session_state["results_visible"] = True
+    btn_cols = st.columns(3)
+    podium_order = [1, 0, 2]
+    for slot, col in zip(podium_order, btn_cols):
+        with col:
+            if slot < len(top3):
+                row = top3.iloc[slot]
+                render_detail_button(
+                    row["airline_name"],
+                    row["composite_score"],
+                    key=f"podium_detail_{int(row['rank'])}",
+                )
 
-# RESULTS SECTION
-if st.session_state["results_visible"]:
-    st.markdown('<div id="results-anchor"></div>', unsafe_allow_html=True)
+    st.markdown(
+        section_description_html(
+            "Urutan podium mengikuti skor komposit tertinggi. Angka pada kartu adalah skor komposit rata-rata per maskapai setelah perhitungan baris valid."
+        ),
+        unsafe_allow_html=True,
+    )
 
-    # Auto-scroll script
-    components.html(
-        """
-        <script>
-            setTimeout(function(){
-                var el = window.parent.document.getElementById('results-anchor');
-                if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-            }, 300);
-        </script>
+with right_col:
+    st.markdown("**Daftar Lengkap Maskapai**")
+    st.markdown(
+        section_description_html(
+            "Maskapai, negara, skor komposit, jumlah ulasan, persentase rekomendasi, overall rating, dan tombol detail."
+        ),
+        unsafe_allow_html=True,
+    )
+
+    header_cols = st.columns([0.35, 2.3, 1.3, 1.65, 1.1, 1.2, 1.1, 0.9])
+    headers = ["#", "Maskapai", "Negara", "Skor Komposit", "Ulasan", "% Rekomendasi", "Overall", ""]
+    for col, title in zip(header_cols, headers):
+        with col:
+            st.markdown(table_header_cell_html(title), unsafe_allow_html=True)
+
+    for idx, row in ranked_df.iterrows():
+        row_cols = st.columns([0.35, 2.3, 1.3, 1.65, 1.1, 1.2, 1.1, 0.9])
+        display_name = slug_to_display(row["airline_name"])
+        country_name = row["airline_country"] if pd.notna(row["airline_country"]) and str(row["airline_country"]).strip() else "Other"
+        rec_pct = float(row["pct_recommended"]) if pd.notna(row["pct_recommended"]) else 0.0
+        overall_rating = float(row["overall_rating"]) if pd.notna(row["overall_rating"]) else 0.0
+
+        with row_cols[0]:
+            st.markdown(rank_pill_html(int(row["rank"])), unsafe_allow_html=True)
+        with row_cols[1]:
+            st.markdown(table_text_cell_html(html.escape(display_name), color="#f6f6f6", bold=True, pad_top="0rem"), unsafe_allow_html=True)
+        with row_cols[2]:
+            st.markdown(table_text_cell_html(html.escape(str(country_name))), unsafe_allow_html=True)
+        with row_cols[3]:
+            st.markdown(score_bar_html(float(row["composite_score"]), max_score=5.0), unsafe_allow_html=True)
+        with row_cols[4]:
+            st.markdown(
+                f"<div style='padding-top:0.25rem;color:#f0f0f0;'>{review_count_badge(int(row['review_count']), int(min_reviews))}</div>",
+                unsafe_allow_html=True,
+            )
+        with row_cols[5]:
+            st.markdown(table_text_cell_html(f"{rec_pct:.1f}%", color="#f0f0f0", bold=True), unsafe_allow_html=True)
+        with row_cols[6]:
+            st.markdown(table_text_cell_html(f"{overall_rating:.1f}", color="#f0f0f0", bold=True), unsafe_allow_html=True)
+        with row_cols[7]:
+            render_detail_button(row["airline_name"], row["composite_score"], key=f"table_detail_{int(row['rank'])}")
+
+        st.markdown(thin_divider_html(), unsafe_allow_html=True)
+
+    st.markdown(
+        f"""
+        <div style="margin-top:0.75rem;color:#c9c9c9;font-size:0.9rem;line-height:1.5;">
+            • Hijau &gt;100 ulasan • Kuning {int(min_reviews)}–99 ulasan • Maskapai dengan &lt;{int(min_reviews)} ulasan valid tidak ditampilkan.
+        </div>
         """,
-        height=0,
+        unsafe_allow_html=True,
     )
-
-    # Compute scores
-    ranked_df = compute_composite_scores(
-        df=df,
-        weights=st.session_state["score_weights"],
-        cabin_filter=st.session_state["filter_cabin"],
-        year_range=st.session_state["filter_year"],
-        include_no_year=st.session_state["filter_include_no_year"],
-        country_filter=st.session_state["filter_country"],
-    )
-
-    if ranked_df.empty:
-        st.warning("Tidak ada data yang sesuai dengan filter. Coba perlebar kriteria filter.")
-    else:
-        # PODIUM
-        top3 = ranked_df.head(3).copy()
-        top3["display_name"] = top3["airline_name"].apply(slug_to_display)
-
-        st.markdown("### Podium Teratas")
-        fig_podium = build_podium(top3)
-        st.markdown(fig_podium, unsafe_allow_html=True)
-
-        # Podium clickable buttons
-        pcol1, pcol2, pcol3 = st.columns(3)
-        podium_order = [1, 0, 2]  # Silver-Gold-Bronze
-        for i, col in zip(podium_order, [pcol1, pcol2, pcol3]):
-            if i < len(top3):
-                row = top3.iloc[i]
-                with col:
-                    if st.button(
-                        f"Lihat Detail: {row['display_name']}", key=f"podium_btn_{i}"
-                    ):
-                        st.session_state["selected_airline"] = row["airline_name"]
-                        st.switch_page("pages/3_detail.py")
-
-        # RANKING TABLE
-        st.markdown("### Semua Maskapai — Ranking Lengkap")
-
-        display_df = ranked_df.copy()
-        display_df["Nama Maskapai"] = display_df["airline_name"].apply(slug_to_display)
-        display_df["Skor Komposit"] = display_df["composite_score"].map("{:.3f}".format)
-        display_df["Rating Rata-rata"] = display_df["avg_overall_rating"].map(
-            "{:.2f}".format
-        )
-        display_df["% Direkomendasikan"] = display_df["pct_recommended"].map(
-            "{:.1f}%".format
-        )
-        display_df["Jumlah Ulasan"] = display_df["review_count"]
-        display_df["Rank"] = display_df["rank"]
-
-        # Add data terbatas note
-        display_df["Catatan"] = display_df["review_count"].apply(
-            lambda n: "Data terbatas" if n < 10 else ""
-        )
-
-        show_cols = [
-            "Rank",
-            "Nama Maskapai",
-            "Skor Komposit",
-            "Rating Rata-rata",
-            "% Direkomendasikan",
-            "Jumlah Ulasan",
-            "Catatan",
-        ]
-
-        selected_rows = st.dataframe(
-            display_df[show_cols],
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            key="ranking_table",
-        )
-
-        if selected_rows and selected_rows["selection"]["rows"]:
-            row_idx = selected_rows["selection"]["rows"][0]
-            chosen = ranked_df.iloc[row_idx]["airline_name"]
-            st.session_state["selected_airline"] = chosen
-            st.switch_page("pages/3_detail.py")

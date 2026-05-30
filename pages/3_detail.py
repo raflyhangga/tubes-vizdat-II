@@ -7,7 +7,10 @@ from utils import (
     INDUSTRY_BENCHMARK,
     slug_to_display,
     get_airline_country,
+    get_airline_subrating_means,
+    get_airline_review_summary,
 )
+from ui_components import kpi_circle_html, score_pill_html, recommendation_callout_html
 from charts.radar import build_radar
 from charts.histogram import build_histogram
 
@@ -26,6 +29,7 @@ defaults = {
     },
     "results_visible": False,
     "selected_airline": None,
+    "selected_airline_score": None,
     "compare_airlines": [],
     "page4_country": None,
 }
@@ -50,7 +54,9 @@ if airline_df.empty:
 
 display_name = slug_to_display(slug)
 home_country = get_airline_country(slug)
-total_reviews = len(airline_df)
+ranking_score = st.session_state.get("selected_airline_score")
+summary = get_airline_review_summary(airline_df)
+total_reviews = summary["review_count"]
 year_min = (
     int(airline_df["review_year"].dropna().min())
     if airline_df["review_year"].notna().any()
@@ -66,58 +72,13 @@ year_max = (
 st.markdown(f"## {display_name}")
 st.caption(f"{home_country} · {total_reviews:,} ulasan · {year_min}–{year_max}")
 
+if ranking_score is not None:
+    st.markdown(score_pill_html(float(ranking_score)), unsafe_allow_html=True)
+
 st.divider()
 
-# ROW 1: 4 KPI Circles
-def render_kpi_circle(label, value):
-    """Returns HTML string for a colored circle KPI."""
-    if value is None or pd.isna(value):
-        color = "#999999"
-        display = "N/A"
-    else:
-        display = f"{value:.2f}"
-        if value >= 4.0:
-            color = "#27ae60"  # green
-        elif value >= 3.0:
-            color = "#f39c12"  # yellow
-        elif value >= 2.0:
-            color = "#e67e22"  # orange
-        else:
-            color = "#e74c3c"  # red
-
-    return f"""
-    <div style="
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        margin: 0.5rem;
-    ">
-        <div style="
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background-color: {color};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.6rem;
-            font-weight: 700;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        ">{display}</div>
-        <div style="
-            margin-top: 0.5rem;
-            font-size: 0.8rem;
-            text-align: center;
-            color: #444;
-            max-width: 100px;
-        ">{label}</div>
-    </div>
-    """
-
-
 col1, col2, col3, col4 = st.columns(4)
-sub_means = airline_df[SUB_RATING_COLS].mean()
+sub_means = get_airline_subrating_means(airline_df, SUB_RATING_COLS)
 kpi_data = [
     ("Kenyamanan Kursi", sub_means.get("seat_comfort_rating")),
     ("Layanan Kabin", sub_means.get("cabin_staff_rating")),
@@ -126,7 +87,7 @@ kpi_data = [
 ]
 for col, (label, val) in zip([col1, col2, col3, col4], kpi_data):
     with col:
-        st.markdown(render_kpi_circle(label, val), unsafe_allow_html=True)
+        st.markdown(kpi_circle_html(label, val), unsafe_allow_html=True)
 
 st.divider()
 
@@ -152,21 +113,12 @@ st.divider()
 r3col1, r3col2, r3col3 = st.columns([2, 1, 1])
 
 with r3col1:
-    pct_rec = airline_df["recommended_int"].mean() * 100
-    rec_color = "#27ae60" if pct_rec >= 70 else "#e74c3c"
-    st.markdown(
-        f"""
-    <div style="text-align:center">
-        <div style="font-size:3.5rem;font-weight:800;color:{rec_color}">{pct_rec:.0f}%</div>
-        <div style="font-size:1rem;color:#666">Penumpang merekomendasikan maskapai ini</div>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+    pct_rec = summary["pct_recommended"]
+    st.markdown(recommendation_callout_html(pct_rec), unsafe_allow_html=True)
 
 with r3col2:
     val_mean = airline_df["value_money_rating"].mean()
-    st.markdown(render_kpi_circle("Nilai Uang", val_mean), unsafe_allow_html=True)
+    st.markdown(kpi_circle_html("Nilai Uang", val_mean), unsafe_allow_html=True)
 
 with r3col3:
     st.markdown("<br><br>", unsafe_allow_html=True)

@@ -282,6 +282,126 @@ def get_available_countries() -> list:
     return sorted(set(AIRLINE_COUNTRY_MAP.values())) + ["Other"]
 
 
+def get_airline_country_options(df: pd.DataFrame) -> list:
+    """Return sorted country options inferred from airline data and the airline map."""
+    values = set()
+    if "airline_country" in df.columns:
+        values.update(df["airline_country"].dropna().astype(str).tolist())
+    values.update(v for v in AIRLINE_COUNTRY_MAP.values() if isinstance(v, str) and v)
+    return sorted(values)
+
+
+def normalize_recommendation_rate(recommended_series: pd.Series) -> float:
+    """Return recommendation rate as a percentage."""
+    if recommended_series is None or len(recommended_series) == 0:
+        return 0.0
+    return float(recommended_series.mean() * 100)
+
+
+def calculate_weighted_row_score(
+    df: pd.DataFrame,
+    rating_columns: list[str],
+    weights: dict,
+    output_column: str = "row_composite_score",
+) -> pd.DataFrame:
+    """Add a weighted score column based on rating columns and normalized weights."""
+    scored = df.copy()
+    for column in rating_columns:
+        scored[column] = pd.to_numeric(scored[column], errors="coerce")
+
+    scored = scored.dropna(subset=rating_columns)
+    if scored.empty:
+        scored[output_column] = pd.Series(dtype=float)
+        return scored
+
+    scored[output_column] = sum(scored[column] * weights[column] for column in rating_columns)
+    return scored
+
+
+def aggregate_airline_scores(
+    df: pd.DataFrame,
+    rating_columns: list[str],
+    weights: dict,
+    group_columns: list[str] | None = None,
+    min_reviews: int = 1,
+    country_filter: str | None = None,
+    country_column: str = "airline_country",
+) -> pd.DataFrame:
+    """Compute row-level weighted scores and aggregate them per airline."""
+    if group_columns is None:
+        group_columns = ["airline_name"]
+
+    filtered = df.copy()
+    if country_filter:
+        if country_column in filtered.columns:
+            filtered = filtered[filtered[country_column] == country_filter]
+        elif "airline_name" in filtered.columns:
+            filtered = filtered[filtered["airline_name"].map(get_airline_country) == country_filter]
+
+    if filtered.empty:
+        return pd.DataFrame()
+
+    scored = calculate_weighted_row_score(filtered, rating_columns, weights)
+    if scored.empty:
+        return pd.DataFrame()
+
+    agg_kwargs = {
+        "composite_score": ("row_composite_score", "mean"),
+        "review_count": (group_columns[0], "size"),
+        "pct_recommended": (
+            "recommended_int",
+            "mean",
+        )
+        if "recommended_int" in scored.columns
+        else (group_columns[0], "size"),
+        "overall_rating": (
+            "overall_rating",
+            "mean",
+        )
+        if "overall_rating" in scored.columns
+        else (group_columns[0], "size"),
+    }
+
+    groupby_cols = group_columns.copy()
+    if country_column in scored.columns and country_column not in groupby_cols:
+        groupby_cols.append(country_column)
+
+    agg = scored.groupby(groupby_cols, as_index=False).agg(**agg_kwargs)
+    agg = agg[agg["review_count"] >= min_reviews].copy()
+    if agg.empty:
+        return agg
+
+    if "pct_recommended" in agg.columns:
+        agg["pct_recommended"] = (agg["pct_recommended"] * 100).round(1)
+    if "overall_rating" in agg.columns:
+        agg["overall_rating"] = pd.to_numeric(agg["overall_rating"], errors="coerce").fillna(0)
+
+    agg["composite_score"] = pd.to_numeric(agg["composite_score"], errors="coerce").fillna(0).round(3)
+    agg = agg.sort_values(
+        ["composite_score", "review_count", "overall_rating"],
+        ascending=[False, False, False],
+    ).reset_index(drop=True)
+    agg["rank"] = range(1, len(agg) + 1)
+    return agg
+
+
+def get_airline_review_summary(df: pd.DataFrame) -> dict:
+    """Return common airline summary metrics used across detail and ranking views."""
+    summary = {
+        "review_count": len(df),
+        "avg_overall_rating": float(df["overall_rating"].mean()) if len(df) > 0 else 0.0,
+        "pct_recommended": normalize_recommendation_rate(df["recommended_int"]) if "recommended_int" in df.columns else 0.0,
+    }
+    return summary
+
+
+def get_airline_subrating_means(df: pd.DataFrame, rating_columns: list[str]) -> pd.Series:
+    """Return per-column mean for the requested rating columns."""
+    if len(df) == 0:
+        return pd.Series({column: np.nan for column in rating_columns})
+    return df[rating_columns].mean()
+
+
 @st.cache_data
 def load_airline_data() -> pd.DataFrame:
     """Load airline_clean.csv with appropriate dtypes."""
