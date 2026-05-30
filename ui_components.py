@@ -76,6 +76,47 @@ def kpi_circle_html(label: str, value: float | None) -> str:
     """
 
 
+def rating_gauge_html(label: str, value: float | None, color: str) -> str:
+    if value is None or pd.isna(value):
+        value = 0.0
+    percent = max(0.0, min(float(value) / 5.0, 1.0))
+    track_color = "rgba(255,255,255,0.08)"
+    fill_angle = percent * 360.0
+    value_text = f"{float(value):.1f}"
+    pct_text = f"{percent * 100:.0f}%"
+
+    return f"""
+    <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border-radius:14px;padding:0.7rem 0.65rem;min-height:110px;'>
+        <div style='position:relative;width:76px;height:76px;border-radius:50%;background:conic-gradient({color} 0deg {fill_angle:.1f}deg, {track_color} {fill_angle:.1f}deg 360deg);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06);'>
+            <div style='position:absolute;inset:10px;border-radius:50%;background:rgba(22,22,22,0.96);display:flex;align-items:center;justify-content:center;flex-direction:column;border:1px solid rgba(255,255,255,0.08);'>
+                <div style='font-size:1.0rem;font-weight:900;color:{color};line-height:1;'>{value_text}</div>
+                <div style='margin-top:0.08rem;font-size:0.68rem;font-weight:700;color:#d6d6d6;letter-spacing:0.02em;'>{pct_text}</div>
+            </div>
+        </div>
+        <div style='margin-top:0.35rem;font-size:0.78rem;font-weight:700;color:#bdbdbd;text-align:center;'>{label}</div>
+    </div>
+    """
+
+
+def detail_header_html(display_name: str, home_country: str, cabin_text: str, review_count: int, badge_text: str = "") -> str:
+    badge_html = f"<div style='display:inline-flex;align-items:center;padding:0.25rem 0.55rem;border-radius:999px;background:rgba(26, 115, 21, 0.75);color:#b6ff9f;font-size:0.82rem;font-weight:800;'>{badge_text}</div>" if badge_text else ""
+    avatar = ''.join([part[0] for part in display_name.split()[:2]]).upper()[:2]
+    return f"""
+    <div style='display:flex;align-items:center;justify-content:space-between;gap:0.8rem;padding:0.7rem 0.9rem;border:1px solid rgba(255,255,255,0.08);border-radius:15px;background:rgba(255,255,255,0.03);box-shadow:0 10px 22px rgba(0,0,0,0.16);'>
+        <div style='display:flex;align-items:center;gap:0.75rem;min-width:0;'>
+            <div style='width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#f0f5ff,#dce8ff);color:#233b73;display:flex;align-items:center;justify-content:center;font-size:0.98rem;font-weight:900;flex:0 0 auto;'>{avatar}</div>
+            <div style='min-width:0;'>
+                <div style='font-size:1.2rem;line-height:1.05;font-weight:900;color:#f5f5f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>{display_name}</div>
+                <div style='margin-top:0.15rem;font-size:0.84rem;color:#bfc7d5;font-weight:600;'>{home_country} · {cabin_text} · {review_count:,} ulasan</div>
+            </div>
+        </div>
+        <div style='display:flex;align-items:center;gap:0.75rem;flex:0 0 auto;'>
+            {badge_html}
+        </div>
+    </div>
+    """
+
+
 def section_banner_html(primary_text: str, secondary_text: str, accent_color: str = "#ff9f43", tertiary_text: str | None = None) -> str:
     tertiary_html = ""
     if tertiary_text:

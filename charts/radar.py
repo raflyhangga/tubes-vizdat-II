@@ -78,9 +78,9 @@ def build_radar(airlines_data: dict, benchmark: dict | None = None) -> go.Figure
             angularaxis=dict(tickfont=dict(size=11)),
         ),
         showlegend=True,
-        legend=dict(orientation="h", y=-0.15),
-        margin=dict(l=40, r=40, t=40, b=60),
-        height=380,
+        legend=dict(orientation="h", y=-0.12, font=dict(size=10)),
+        margin=dict(l=25, r=25, t=20, b=35),
+        height=280,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
