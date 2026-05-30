@@ -112,16 +112,12 @@ df = load_data()
 # ============================================================================
 # PAGE HEADER
 # ============================================================================
-st.title("🌍 Skytrax Reviews Dashboard")
-st.caption(
-    "Analyze airline, airport, lounge, and seat reviews from the Skytrax platform (2015). "
-    "Use the filters below to explore reviewer countries, ratings, and trends."
-)
+st.title("Skytrax Reviews Dashboard")
 
 # ============================================================================
 # SIDEBAR — GLOBAL FILTERS
 # ============================================================================
-st.sidebar.header("📊 Filters")
+st.sidebar.header("Filters")
 
 # Review Type Multiselect
 review_types = st.sidebar.multiselect(
@@ -157,7 +153,7 @@ if "cabin_flown" in df.columns:
         help="Only applies to airline reviews"
     )
 else:
-    st.sidebar.info("ℹ️ Cabin Class filter unavailable in consolidated view. Use airline_clean.csv for detailed analysis.")
+    st.sidebar.info("Cabin Class filter unavailable in consolidated view. Use airline_clean.csv for detailed analysis.")
 
 # Traveller Type (sparse across categories — not in consolidated)
 type_traveller = []
@@ -170,7 +166,7 @@ if "type_traveller" in df.columns:
         help="Filter by traveller type (sparse data)"
     )
 else:
-    st.sidebar.info("ℹ️ Traveller Type filter unavailable in consolidated view.")
+    st.sidebar.info("Traveller Type filter unavailable in consolidated view.")
 
 # Reviewer Country
 country_options = sorted([x for x in df["author_country"].dropna().unique() if pd.notna(x)])
@@ -203,7 +199,7 @@ filtered_data = apply_global_filters(
 # ============================================================================
 # KPI STRIP
 # ============================================================================
-st.subheader("📈 Dashboard Overview")
+st.subheader("Dashboard Overview")
 col1, col2, col3, col4 = st.columns(4)
 
 total_reviews = len(filtered_data)
@@ -225,7 +221,7 @@ st.divider()
 # ============================================================================
 # CHOROPLETH MAP
 # ============================================================================
-st.subheader("🗺️ Reviewer Geographic Distribution")
+st.subheader("Reviewer Geographic Distribution")
 
 if len(filtered_data) > 0:
     agg = aggregate_for_choropleth(filtered_data)
@@ -266,7 +262,7 @@ if len(filtered_data) > 0:
     # ============================================================================
     # TOP-15 COUNTRIES TABLE
     # ============================================================================
-    st.subheader("📊 Top 15 Reviewer Countries")
+    st.subheader("Top 15 Reviewer Countries")
 
     top15 = agg.nlargest(15, "review_count")[
         ["author_country", "review_count", "avg_overall_rating", "recommendation_rate"]
