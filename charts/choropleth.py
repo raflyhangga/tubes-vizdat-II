@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils import METRIC_COL
+from utils import METRIC_COL, get_airline_country
 
 
 def aggregate_for_choropleth(filtered_df: pd.DataFrame) -> pd.DataFrame:
@@ -78,4 +78,67 @@ def build_choropleth(filtered_data: pd.DataFrame, metric: str) -> None:
         "recommendation_rate": "Recommended %",
     }).reset_index(drop=True)
 
-    st.dataframe(top15, use_container_width=True, hide_index=True)
+    return top15
+
+
+def build_airline_origin_choropleth(airline_data: pd.DataFrame) -> px.choropleth:
+    """
+    Build a choropleth map showing airline origin countries.
+
+    Args:
+        airline_data: The raw airline reviews DataFrame
+
+    Returns:
+        A Plotly choropleth figure
+    """
+    if len(airline_data) == 0:
+        return None
+
+    data = airline_data.copy()
+    data["origin_country"] = data["airline_name"].apply(get_airline_country)
+
+    agg = data.groupby("origin_country", as_index=False).agg(
+        num_airlines=("airline_name", "nunique"),
+        total_reviews=("airline_name", "size"),
+    ).rename(columns={
+        "origin_country": "country"
+    })
+
+    fig = px.choropleth(
+        agg,
+        locations="country",
+        locationmode="country names",
+        color="total_reviews",
+        color_continuous_scale="Blues",
+        labels={
+            "total_reviews": "Total Reviews",
+            "num_airlines": "Airlines",
+            "country": "Country",
+        },
+        hover_name="country",
+        hover_data={
+            "num_airlines": True,
+            "total_reviews": ":,",
+            "country": False,
+        },
+        title="",
+    )
+
+    fig.update_traces(
+        hovertemplate="<b>%{customdata[0]}</b><br>Airlines: %{customdata[1]}<br>Total Reviews: %{customdata[2]:,}<extra></extra>",
+        customdata=agg[["country", "num_airlines", "total_reviews"]].values,
+    )
+
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=50, b=0),
+        geo=dict(
+            showframe=False,
+            showcoastlines=True,
+            projection_type="natural earth",
+            scope="world",
+        ),
+        dragmode=False,
+        height=500,
+    )
+
+    return fig
