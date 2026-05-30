@@ -349,7 +349,6 @@ def compute_composite_scores(
         + w["cabin"] * data["cabin_staff_rating"]
         + w["food"] * data["food_beverages_rating"]
         + w["entertainment"] * data["inflight_entertainment_rating"]
-        + w["value"] * data["value_money_rating"]
     )
 
     # Aggregate per airline
@@ -362,7 +361,6 @@ def compute_composite_scores(
         avg_cabin_staff=("cabin_staff_rating", "mean"),
         avg_food=("food_beverages_rating", "mean"),
         avg_entertainment=("inflight_entertainment_rating", "mean"),
-        avg_value=("value_money_rating", "mean"),
     )
 
     agg["pct_recommended"] = (agg["pct_recommended"] * 100).round(1)
@@ -371,3 +369,243 @@ def compute_composite_scores(
     agg["rank"] = agg.index + 1
 
     return agg
+
+
+def triple_range_slider(
+    label: str = "Pilih 3 titik",
+    default_points: tuple[int, int, int] = (25, 50, 75),
+    key: str | None = None,
+) -> dict:
+    from typing import Any
+
+    HTML = """
+<div class="tri-slider">
+  <div class="tri-slider__header">
+    <div class="tri-slider__title"></div>
+  </div>
+
+  <div class="tri-slider__track-area">
+    <div class="tri-slider__track"></div>
+    <div class="tri-slider__fill"></div>
+
+    <input class="tri-slider__input" data-handle="1" type="range" min="0" max="100" step="1" />
+    <input class="tri-slider__input" data-handle="2" type="range" min="0" max="100" step="1" />
+    <input class="tri-slider__input" data-handle="3" type="range" min="0" max="100" step="1" />
+  </div>
+</div>
+"""
+
+    CSS = """
+.tri-slider {
+  font-family: inherit;
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.tri-slider__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tri-slider__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.tri-slider__track-area {
+  position: relative;
+  height: 3.2rem;
+  display: flex;
+  align-items: center;
+}
+
+.tri-slider__track,
+.tri-slider__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0.55rem;
+  border-radius: 999px;
+}
+
+.tri-slider__track {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.tri-slider__fill {
+  background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
+  opacity: 0.9;
+}
+
+.tri-slider__input {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  margin: 0;
+  pointer-events: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tri-slider__input::-webkit-slider-runnable-track {
+  height: 0.55rem;
+  background: transparent;
+}
+
+.tri-slider__input::-moz-range-track {
+  height: 0.55rem;
+  background: transparent;
+  border: 0;
+}
+
+.tri-slider__input::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0f172a;
+  box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.35);
+  cursor: grab;
+  margin-top: -0.3rem;
+}
+
+.tri-slider__input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background: #0f172a;
+  box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.35);
+  cursor: grab;
+}
+"""
+
+    JS = """
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function normalizePoints(values) {
+  const first = clamp(values[0], 0, 100);
+  const second = clamp(values[1], first, 100);
+  const third = clamp(values[2], second, 100);
+  return [first, second, third];
+}
+
+function computeRanges(points) {
+  const [first, second, third] = points;
+  return {
+    var_1: first,
+    var_2: second - first,
+    var_3: third - second,
+    var_4: 100 - third,
+    total: 100,
+  };
+}
+
+export default function(component) {
+  const { parentElement, data, setStateValue } = component;
+  const title = parentElement.querySelector('.tri-slider__title');
+  const fill = parentElement.querySelector('.tri-slider__fill');
+  const inputs = Array.from(parentElement.querySelectorAll('.tri-slider__input'));
+
+  title.textContent = data?.label ?? 'Slider 3 Titik';
+
+  const defaults = Array.isArray(data?.points) && data.points.length === 3
+    ? data.points
+    : [25, 50, 75];
+
+  const initial = normalizePoints(defaults.map(Number));
+
+  inputs.forEach((input, index) => {
+    input.value = String(initial[index]);
+  });
+
+  function render() {
+    const points = normalizePoints(inputs.map((input) => Number(input.value)));
+
+    inputs.forEach((input, index) => {
+      input.value = String(points[index]);
+    });
+
+    const ranges = computeRanges(points);
+    const [first, second, third] = points;
+
+    fill.style.left = '0%';
+    fill.style.width = `${third}%`;
+
+    setStateValue('value', {
+      points: {
+        first,
+        second,
+        third,
+      },
+      ranges,
+    });
+  }
+
+  inputs.forEach((input) => {
+    input.addEventListener('input', render);
+    input.addEventListener('change', render);
+  });
+
+  render();
+}
+"""
+
+    tri_slider = st.components.v2.component(
+        "triple_range_slider",
+        html=HTML,
+        css=CSS,
+        js=JS,
+    )
+
+    result = tri_slider(
+        key=key,
+        data={"label": label, "points": list(default_points)},
+        default={
+            "value": {
+                "points": {
+                    "first": default_points[0],
+                    "second": default_points[1],
+                    "third": default_points[2],
+                },
+                "ranges": {
+                    "var_1": default_points[0],
+                    "var_2": default_points[1] - default_points[0],
+                    "var_3": default_points[2] - default_points[1],
+                    "var_4": 100 - default_points[2],
+                    "total": 100,
+                },
+            }
+        },
+        on_value_change=lambda: None,
+    )
+
+    if result.value is None:
+        return {
+            "points": {
+                "first": default_points[0],
+                "second": default_points[1],
+                "third": default_points[2],
+            },
+            "ranges": {
+                "var_1": default_points[0],
+                "var_2": default_points[1] - default_points[0],
+                "var_3": default_points[2] - default_points[1],
+                "var_4": 100 - default_points[2],
+                "total": 100,
+            },
+        }
+
+    return result.value
