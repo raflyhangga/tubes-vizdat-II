@@ -50,9 +50,84 @@ def build_boxplot(df: pd.DataFrame, airline_slugs: list) -> go.Figure:
         xaxis=dict(title="Maskapai"),
         showlegend=False,
         margin=dict(l=40, r=20, t=30, b=60),
-        height=380,
+        height=320,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
     fig.update_yaxes(gridcolor="#e8e8e8")
     return fig
+
+
+def build_single_airline_subrating_boxplot(df: pd.DataFrame, airline_slug: str, rating_columns: list[str]) -> go.Figure:
+    """Build a subrating boxplot for a single airline across its review data."""
+    fig = go.Figure()
+    color = AIRLINE_COLORS[0]
+
+    for col in rating_columns:
+        values = df[col].dropna()
+        fig.add_trace(
+            go.Box(
+                y=values,
+                name=col.replace("_", " ").title(),
+                marker_color=color,
+                boxmean="sd",
+                hovertemplate=(
+                    f"<b>{slug_to_display(airline_slug)}</b><br>"
+                    f"{col.replace('_', ' ').title()}: %{{median:.2f}}<br>"
+                    "Q1–Q3: %{q1:.2f}–%{q3:.2f}<br>"
+                    "Min–Max: %{lowerfence:.2f}–%{upperfence:.2f}" "<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        yaxis=dict(title="Nilai Rating", range=[0, 5]),
+        xaxis=dict(title="Subrating"),
+        showlegend=False,
+        margin=dict(l=40, r=20, t=40, b=60),
+        height=300,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_yaxes(gridcolor="#e8e8e8")
+    return fig
+
+
+def build_comparison_subrating_boxplots(df: pd.DataFrame, airline_slugs: list[str], rating_columns: list[str]) -> list[go.Figure]:
+    """Build a list of boxplots comparing airlines across each rating column."""
+    figs = []
+    for col in rating_columns:
+        fig = go.Figure()
+        for i, slug in enumerate(airline_slugs):
+            values = df[df["airline_name"] == slug][col].dropna()
+            color = AIRLINE_COLORS[i % len(AIRLINE_COLORS)]
+            fig.add_trace(
+                go.Box(
+                    y=values,
+                    name=slug_to_display(slug),
+                    marker_color=color,
+                    boxmean="sd",
+                    hovertemplate=(
+                        "<b>%{fullData.name}</b><br>"
+                        f"{col.replace('_', ' ').title()}: %{{median:.2f}}<br>"
+                        "Q1–Q3: %{q1:.2f}–%{q3:.2f}<br>"
+                        "Min–Max: %{lowerfence:.2f}–%{upperfence:.2f}" "<extra></extra>"
+                    ),
+                )
+            )
+
+        fig.update_layout(
+            yaxis=dict(title="Nilai Rating", range=[0, 5]),
+            xaxis=dict(title="Maskapai"),
+            showlegend=False,
+            margin=dict(l=40, r=20, t=40, b=60),
+            height=280,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            title_text=col.replace("_", " ").title(),
+            title_x=0.5,
+        )
+        fig.update_yaxes(gridcolor="#e8e8e8")
+        figs.append(fig)
+
+    return figs

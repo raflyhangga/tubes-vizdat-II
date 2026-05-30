@@ -11,130 +11,198 @@ from utils import (
     get_airline_subrating_means,
 )
 from charts.radar import build_radar
-from charts.boxplot import build_boxplot
+from charts.boxplot import (
+    build_single_airline_subrating_boxplot,
+    build_comparison_subrating_boxplots,
+)
 
-# Initialize session state
-defaults = {
-    "filter_country": None,
-    "filter_cabin": ["Economy", "Business Class", "Premium Economy", "First Class"],
-    "filter_year": (2004, 2015),
-    "filter_include_no_year": True,
-    "score_weights": {
-        "seat": 0.2,
-        "cabin": 0.2,
-        "food": 0.2,
-        "entertainment": 0.2,
-        "value": 0.2,
-    },
-    "results_visible": False,
-    "selected_airline": None,
-    "compare_airlines": [],
-    "page4_country": None,
-}
-for k, v in defaults.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
+st.set_page_config(page_title="Perbandingan Maskapai", layout="wide")
 
 df = load_airline_data()
 
 st.title("Perbandingan Maskapai")
+st.markdown(
+    "Pilih negara, pilih beberapa maskapai, lalu tekan **Terapkan** untuk melihat perbandingan radar dan boxplot."
+)
 
-# TOP FILTERS
+# -----------------------------------------------------------------------------
+# Controls data
+# -----------------------------------------------------------------------------
 default_country = st.session_state.get("page4_country") or "United Kingdom"
 
 countries = get_airline_country_options(df)
-chosen_country = st.selectbox(
-    "Negara Asal Maskapai",
-    options=["(Semua negara)"] + countries,
-    index=(
-        (countries.index(default_country) + 1)
-        if default_country in countries
-        else 0
-    ),
-)
+vc = df["airline_name"].value_counts()
 
-# Get airlines for selected country
-if chosen_country == "(Semua negara)":
-    country_airlines = df["airline_name"].unique().tolist()
+default_country_name = st.session_state.get("page4_country") or default_country
+
+if default_country_name == "(Semua negara)":
+    default_country_airlines = df["airline_name"].unique().tolist()
 else:
-    country_airlines = [
-        a
-        for a in df["airline_name"].unique()
-        if get_airline_country(a) == chosen_country
+    default_country_airlines = [
+        a for a in df["airline_name"].unique()
+        if get_airline_country(a) == default_country_name
     ]
 
-# Sort by review count
-vc = df["airline_name"].value_counts()
-country_airlines_sorted = sorted(country_airlines, key=lambda a: -vc.get(a, 0))
-
-# Display names for multi-select
-display_options = {slug_to_display(a): a for a in country_airlines_sorted}
-
-# Pre-select airlines from session state
-pre_selected_slugs = st.session_state.get("compare_airlines", [])
-pre_selected_display = [
-    slug_to_display(s) for s in pre_selected_slugs if slug_to_display(s) in display_options
-]
-
-selected_display = st.multiselect(
-    "Pilih maskapai untuk dibandingkan (2–6 maskapai)",
-    options=list(display_options.keys()),
-    default=pre_selected_display,
-    max_selections=6,
+default_country_airlines_sorted = sorted(
+    default_country_airlines,
+    key=lambda a: -vc.get(a, 0)
 )
-selected_slugs = [display_options[d] for d in selected_display]
 
-if st.button("Terapkan", type="primary"):
-    st.session_state["compare_airlines"] = selected_slugs
-    st.session_state["page4_country"] = (
-        chosen_country if chosen_country != "(Semua negara)" else None
-    )
+default_single_slug = (
+    default_country_airlines_sorted[0]
+    if default_country_airlines_sorted
+    else None
+)
 
-# RESULTS
+page4_applied = st.session_state.get("page4_applied", False)
 active_slugs = st.session_state.get("compare_airlines", [])
-if len(active_slugs) < 2:
-    st.info("Pilih minimal 2 maskapai dan tekan 'Terapkan' untuk melihat perbandingan.")
-else:
-    compare_df = df[df["airline_name"].isin(active_slugs)].copy()
 
-    # Compute per-airline sub-rating means for radar
-    airlines_data = {}
-    for slug in active_slugs:
-        sub = get_airline_subrating_means(compare_df[compare_df["airline_name"] == slug], SUB_RATING_COLS)
-        airlines_data[slug_to_display(slug)] = sub.to_dict()
+active_df = (
+    df[df["airline_name"].isin(active_slugs)]
+    if active_slugs
+    else pd.DataFrame()
+)
 
-    left_col, right_col = st.columns(2)
+# -----------------------------------------------------------------------------
+# Layout
+# -----------------------------------------------------------------------------
+left_col, right_col = st.columns([1.5, 1], gap="large")
 
-    with left_col:
-        st.markdown("**Radar — Profil Layanan**")
+with left_col:
+    st.markdown("#### Radar Perbandingan Maskapai")
+
+    if active_slugs:
+        airlines_data = {
+            slug_to_display(slug): get_airline_subrating_means(
+                active_df[active_df["airline_name"] == slug],
+                SUB_RATING_COLS
+            ).to_dict()
+            for slug in active_slugs
+        }
+
         fig_radar = build_radar(
             airlines_data=airlines_data,
-            benchmark=INDUSTRY_BENCHMARK,
+            benchmark=INDUSTRY_BENCHMARK
         )
+
         st.plotly_chart(fig_radar, use_container_width=True)
 
-    with right_col:
-        st.markdown("**Distribusi Rating Keseluruhan**")
-        fig_box = build_boxplot(compare_df, active_slugs)
-        st.plotly_chart(fig_box, use_container_width=True)
+    else:
+        st.info("Pilih maskapai lalu tekan Terapkan untuk melihat radar perbandingan.")
 
-    # AUTO-GENERATED ANNOTATION
+    if not page4_applied:
+        current_selected = st.session_state.get("compare_airlines", [])
+        single_slug = current_selected[0] if current_selected else default_single_slug
+
+        if single_slug:
+            st.markdown("#### Boxplot Subrating Maskapai Default")
+
+            single_df = df[df["airline_name"] == single_slug]
+
+            fig_single = build_single_airline_subrating_boxplot(
+                single_df,
+                single_slug,
+                SUB_RATING_COLS
+            )
+
+            st.plotly_chart(fig_single, use_container_width=True)
+
     st.markdown("---")
-    st.markdown("**Insight Otomatis:**")
-    for col_key, col_label in {
-        "seat_comfort_rating": "kenyamanan kursi",
-        "cabin_staff_rating": "layanan kabin",
-        "food_beverages_rating": "makanan & minuman",
-        "inflight_entertainment_rating": "hiburan",
-        "value_money_rating": "nilai uang",
-    }.items():
-        best_slug = max(
+    st.markdown("### Perbandingan 4 Subrating")
+
+    if len(active_slugs) >= 2:
+        figures = build_comparison_subrating_boxplots(
+            active_df,
             active_slugs,
-            key=lambda s: compare_df[compare_df["airline_name"] == s][col_key].mean(),
+            SUB_RATING_COLS
         )
-        best_val = (
-            compare_df[compare_df["airline_name"] == best_slug][col_key].mean()
+
+        cols = st.columns(4, gap="small")
+
+        for fig, col in zip(figures, cols):
+            col.plotly_chart(fig, use_container_width=True)
+
+    elif active_slugs:
+        st.info("Tambahkan setidaknya satu maskapai lagi untuk melihat perbandingan antar maskapai.")
+
+    else:
+        st.info("Pilih maskapai dan tekan Terapkan untuk menampilkan perbandingan boxplot.")
+
+with right_col:
+    if page4_applied:
+        display_country = st.session_state.get("page4_country") or "(Semua negara)"
+        selected_slugs = st.session_state.get("compare_airlines", [])
+
+        st.markdown("**Filter diterapkan**")
+        st.write(f"- Negara: {display_country}")
+
+        if selected_slugs:
+            st.write("- Maskapai:")
+            for slug in selected_slugs:
+                st.write(f"  - {slug_to_display(slug)} ({get_airline_country(slug)})")
+        else:
+            st.info("Tidak ada maskapai terpilih.")
+
+        if st.button("Ubah", key="page4_edit_button"):
+            st.session_state["page4_applied"] = False
+            st.rerun()
+
+    else:
+        chosen_country = st.selectbox(
+            "Negara Asal Maskapai",
+            options=["(Semua negara)"] + countries,
+            index=(countries.index(default_country) + 1)
+            if default_country in countries
+            else 0,
+            key="page4_chosen_country",
         )
-        st.markdown(
-            f"- **{slug_to_display(best_slug)}** unggul dalam {col_label} (rata-rata: {best_val:.2f}/5)"
+
+        if chosen_country == "(Semua negara)":
+            country_airlines = df["airline_name"].unique().tolist()
+        else:
+            country_airlines = [
+                a for a in df["airline_name"].unique()
+                if get_airline_country(a) == chosen_country
+            ]
+
+        country_airlines_sorted = sorted(
+            country_airlines,
+            key=lambda a: -vc.get(a, 0)
         )
+
+        display_options = {
+            slug_to_display(a): a
+            for a in country_airlines_sorted
+        }
+
+        pre_selected_slugs = st.session_state.get("compare_airlines", [])
+
+        pre_selected_display = [
+            slug_to_display(s)
+            for s in pre_selected_slugs
+            if slug_to_display(s) in display_options
+        ]
+
+        selected_display = st.multiselect(
+            "Pilih maskapai untuk dibandingkan (2–6 maskapai)",
+            options=list(display_options.keys()),
+            default=pre_selected_display,
+            max_selections=6,
+            key="page4_selected_display",
+        )
+
+        selected_slugs = [
+            display_options[d]
+            for d in selected_display
+        ]
+
+        if st.button("Terapkan", type="primary", key="page4_apply_button"):
+            st.session_state["compare_airlines"] = selected_slugs
+            st.session_state["page4_country"] = (
+                chosen_country
+                if chosen_country != "(Semua negara)"
+                else None
+            )
+            st.session_state["page4_applied"] = True
+
+            st.rerun()
