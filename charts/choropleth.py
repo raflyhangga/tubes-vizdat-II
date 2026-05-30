@@ -1,3 +1,4 @@
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 from utils import METRIC_COL, get_airline_country
@@ -18,19 +19,15 @@ def aggregate_for_choropleth(filtered_df: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
-def build_choropleth(filtered_data: pd.DataFrame, metric: str) -> px.choropleth:
-    """
-    Build and return a choropleth map figure.
+def build_choropleth(filtered_data: pd.DataFrame, metric: str) -> None:
+    """Render the choropleth map and top-15 table section."""
+    # ============================================================================
+    # CHOROPLETH MAP
+    # ============================================================================
+    st.subheader("Reviewer Geographic Distribution")
 
-    Args:
-        filtered_data: The filtered DataFrame to visualize
-        metric: The metric to color by (e.g., "Review Count", "Avg Overall Rating")
-
-    Returns:
-        A Plotly choropleth figure
-    """
     if len(filtered_data) == 0:
-        return None
+        return
 
     agg = aggregate_for_choropleth(filtered_data)
     color_col = METRIC_COL[metric]
@@ -65,23 +62,13 @@ def build_choropleth(filtered_data: pd.DataFrame, metric: str) -> px.choropleth:
         ),
         height=600,
     )
-    return fig
+    st.plotly_chart(fig, use_container_width=True)
 
+    # ============================================================================
+    # TOP-15 COUNTRIES TABLE
+    # ============================================================================
+    st.subheader("Top 15 Reviewer Countries")
 
-def build_top15_table(filtered_data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build a top-15 countries table.
-
-    Args:
-        filtered_data: The filtered DataFrame to aggregate
-
-    Returns:
-        A formatted DataFrame for display
-    """
-    if len(filtered_data) == 0:
-        return pd.DataFrame()
-
-    agg = aggregate_for_choropleth(filtered_data)
     top15 = agg.nlargest(15, "review_count")[
         ["author_country", "review_count", "avg_overall_rating", "recommendation_rate"]
     ].rename(columns={
