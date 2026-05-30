@@ -10,6 +10,7 @@ from utils import (
     triple_range_slider,
 )
 from charts.podium import build_podium
+from charts.choropleth import build_airline_origin_choropleth
 
 # Initialize session state
 defaults = {
@@ -104,6 +105,12 @@ if st.button("Terapkan Filter", type="primary", disabled=apply_disabled):
         st.session_state["filter_country"] = filter_country
         st.session_state["filter_cabin"] = selected_cabins
         st.session_state["results_visible"] = True
+
+# AIRLINE ORIGIN MAP (always visible, independent of filters)
+st.markdown("### Peta Persebaran Data")
+fig_choropleth = build_airline_origin_choropleth(df)
+if fig_choropleth:
+    st.plotly_chart(fig_choropleth, use_container_width=True)
 
 # RESULTS SECTION
 if st.session_state["results_visible"]:
