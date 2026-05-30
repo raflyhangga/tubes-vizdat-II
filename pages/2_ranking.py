@@ -110,7 +110,11 @@ if st.button("Terapkan Filter", type="primary", disabled=apply_disabled):
 st.markdown("### Peta Persebaran Data")
 fig_choropleth = build_airline_origin_choropleth(df)
 if fig_choropleth:
-    st.plotly_chart(fig_choropleth, use_container_width=True)
+    st.plotly_chart(
+        fig_choropleth,
+        use_container_width=True,
+        config={"scrollZoom": False, "displayModeBar": False},
+    )
 
 # RESULTS SECTION
 if st.session_state["results_visible"]:

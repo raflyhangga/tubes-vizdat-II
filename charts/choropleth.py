@@ -135,7 +135,9 @@ def build_airline_origin_choropleth(airline_data: pd.DataFrame) -> px.choropleth
             showframe=False,
             showcoastlines=True,
             projection_type="natural earth",
+            scope="world",
         ),
+        dragmode=False,
         height=500,
     )
 
