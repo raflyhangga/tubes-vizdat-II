@@ -41,7 +41,6 @@ htmlcov/
 .DS_Store
 
 # Streamlit
-.streamlit/
 *.secrets.toml
 
 # Temporary files
