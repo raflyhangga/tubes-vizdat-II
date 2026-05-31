@@ -82,7 +82,7 @@ def rating_gauge_html(label: str, value: float | None, color: str) -> str:
     <div style='display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.04);border-radius:14px;padding:0.7rem 0.65rem;min-height:110px;'>
         <div style='position:relative;width:76px;height:76px;border-radius:50%;background:conic-gradient({color} 0deg {fill_angle:.1f}deg, {track_color} {fill_angle:.1f}deg 360deg);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06);'>
             <div style='position:absolute;inset:10px;border-radius:50%;background:rgba(22,22,22,0.96);display:flex;align-items:center;justify-content:center;flex-direction:column;border:1px solid rgba(255,255,255,0.08);'>
-                <div style='font-size:1.0rem;font-weight:900;color:{color};line-height:1;'>{value_text}</div>
+                <div style='font-size:1.0rem;font-weight:900;color:{color};line-height:1;text-shadow:0 0 0.5px {color};'>{value_text}</div>
                 <div style='margin-top:0.08rem;font-size:0.68rem;font-weight:700;color:#d6d6d6;letter-spacing:0.02em;'>{pct_text}</div>
             </div>
         </div>
@@ -100,7 +100,7 @@ def detail_header_html(display_name: str, home_country: str, cabin_text: str, re
             <div style='width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#f0f5ff,#dce8ff);color:#233b73;display:flex;align-items:center;justify-content:center;font-size:0.98rem;font-weight:900;flex:0 0 auto;'>{avatar}</div>
             <div style='min-width:0;'>
                 <div style='font-size:1.2rem;line-height:1.05;font-weight:900;color:#f5f5f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>{display_name}</div>
-                <div style='margin-top:0.15rem;font-size:0.84rem;color:#bfc7d5;font-weight:600;'>{home_country} · {cabin_text} · {review_count:,} ulasan</div>
+                <div style='margin-top:0.15rem;font-size:0.84rem;color:#bfc7d5;font-weight:600;'>{home_country} · {cabin_text} · {review_count:,} reviews</div>
             </div>
         </div>
         <div style='display:flex;align-items:center;gap:0.75rem;flex:0 0 auto;'>
@@ -147,7 +147,7 @@ def recommendation_callout_html(pct_recommended: float) -> str:
     return f"""
     <div style="text-align:center">
         <div style="font-size:3.5rem;font-weight:800;color:{rec_color}">{pct_recommended:.0f}%</div>
-        <div style="font-size:1rem;color:#666">Penumpang merekomendasikan maskapai ini</div>
+        <div style="font-size:1rem;color:#666">Passengers recommend this airline</div>
     </div>
     """
 

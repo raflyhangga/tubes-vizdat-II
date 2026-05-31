@@ -26,7 +26,15 @@ DEFAULT_WEIGHT_BY_COL = {
     "inflight_entertainment_rating": 0.25,
 }
 
+CABIN_LABELS = {
+    "First Class": "First Class",
+    "Business Class": "Business Class",
+    "Premium Economy": "Premium Economy",
+    "Economy": "Economy",
+}
+
 SESSION_DEFAULTS = {
+    "filter_cabin": ["First Class", "Business Class", "Premium Economy", "Economy"],
     "ranking_country": None,
     "ranking_min_reviews": 30,
     "ranking_weights": DEFAULT_WEIGHT_BY_COL,
@@ -59,14 +67,22 @@ def _init_weights() -> dict:
     return {col: value / total for col, value in weights.items()}
 
 
+def _normalize_cabin_filter(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if str(item).strip()]
+    return []
+
+
 def render_detail_button(airline_name: str, score: float, key: str) -> None:
-    if st.button("Detail →", key=key, use_container_width=True):
+    if st.button("Details →", key=key, use_container_width=True):
         st.session_state["selected_airline"] = airline_name
         st.session_state["selected_airline_score"] = float(score)
         st.switch_page("pages/3_detail.py")
 
 
-st.set_page_config(page_title="Ranking Maskapai", page_icon="✈️", layout="wide")
+st.set_page_config(page_title="Airline Ranking", page_icon="✈️", layout="wide")
 
 # =====================================================================
 # CSS GLOBAL & KUSTOMISASI PALET WARNA LIGHT MODE
@@ -253,7 +269,7 @@ def build_podium(top3_df: pd.DataFrame) -> str:
             f'align-items:center;justify-content:flex-end;box-shadow:0 4px 15px rgba(0,0,0,0.1);text-align:center;">'
             f'<div style="font-size:2rem;font-weight:800;color:rgba(0,0,0,0.3);line-height:1;">{rank_label}</div>'
             f'<div style="font-size:{name_size};font-weight:700;color:#1a1a1a;margin-top:0.5rem;line-height:1.2;">{name}</div>'
-            f'<div style="font-size:{score_size};font-weight:800;color:#1a1a1a;margin-top:0.3rem;">{score:.3f}</div>'
+            f'<div style="font-size:{score_size};font-weight:800;color:#1a1a1a;margin-top:0.3rem;">{score:.2f}<span style="font-size:0.72em;font-weight:700;vertical-align:baseline;">/ 5</span></div>'
             f'<div style="font-size:0.75rem;color:rgba(0,0,0,0.6);margin-top:0.2rem;">{pct:.0f}% direkomendasikan</div>'
             f'</div></div>'
         )
@@ -276,18 +292,24 @@ selected_country_value = st.session_state.get("ranking_country")
 if selected_country_value not in country_options:
     selected_country_value = None
 
+selected_cabins = _normalize_cabin_filter(st.session_state.get("filter_cabin"))
+if not selected_cabins:
+    selected_cabins = ["First Class", "Business Class", "Premium Economy", "Economy"]
+
 min_reviews = int(st.session_state.get("ranking_min_reviews", 30))
 
 st.session_state["ranking_country"] = selected_country_value
 st.session_state["ranking_min_reviews"] = int(min_reviews)
 st.session_state["ranking_weights"] = weights
+st.session_state["filter_cabin"] = selected_cabins
 
-st.markdown(f"<h1 style='font-family: Inter; font-weight: 900; color: #1f2234; text-transform: uppercase; margin-bottom: 0;'>Ranking Maskapai</h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='font-family: Inter; font-weight: 900; color: #1f2234; text-transform: uppercase; margin-bottom: 0;'>Airline Ranking</h1>", unsafe_allow_html=True)
 
-country_label = selected_country_value or "Semua negara"
+country_label = selected_country_value or "All countries"
+selected_cabins_label = ", ".join(CABIN_LABELS.get(cabin, cabin) for cabin in selected_cabins)
 st.markdown(
     f"<div style='font-family: Source Sans 3; font-size: 1.05rem; font-weight: 600; color: #1c78bb; margin-bottom: 1.5rem;'>"
-    f"Podium berada di kiri. Tabel lengkap dengan detail berada di kanan. Filter aktif: <b>{country_label}</b> · minimal <b>{int(min_reviews)} review valid</b>."
+    f"The podium is on the left. The full table with details is on the right. Active filters: <b>{country_label}</b> · cabin <b>{selected_cabins_label}</b> · minimum <b>{int(min_reviews)} valid reviews</b>."
     f"</div>", 
     unsafe_allow_html=True
 )
@@ -300,12 +322,12 @@ weight_summary = " · ".join(
 
 st.markdown(
     custom_banner(
-        primary=f"KAMU MEMENTINGKAN {html.escape(active_weight_text)} PALING TINGGI.",
+        primary=f"You prioritize {html.escape(active_weight_text)} the most.",
         secondary=(
-            "Skor dihitung per baris dari bobot yang diwariskan, lalu dirata-ratakan per maskapai. "
-            f"Maskapai yang tampil wajib punya minimal {int(min_reviews)} review valid setelah filter negara diterapkan."
+            "Scores are computed row by row using the inherited weights, then averaged per airline. "
+            f"Displayed airlines must have at least {int(min_reviews)} valid reviews after the country filter is applied."
         ),
-        tertiary=f"Bobot aktif: {html.escape(weight_summary)}",
+        tertiary=f"Active weight: {html.escape(weight_summary)}",
     ),
     unsafe_allow_html=True,
 )
@@ -315,12 +337,13 @@ ranked_df = aggregate_airline_scores(
     rating_columns=RATING_COLS,
     weights=weights,
     group_columns=["airline_name"],
+    cabin_filter=selected_cabins,
     country_filter=selected_country_value,
     min_reviews=int(min_reviews),
 )
 
 if ranked_df.empty:
-    st.warning("Tidak ada maskapai yang memenuhi filter negara dan batas minimum review valid.")
+    st.warning("No airlines match the country filter and minimum valid review threshold.")
     st.stop()
 
 # =====================================================================
@@ -332,11 +355,11 @@ top3 = ranked_df.head(3).copy()
 top3["display_name"] = top3["airline_name"].apply(slug_to_display)
 
 with left_col:
-    st.markdown("<h3 style='font-family: Inter; font-weight: 900; color: #1f2234 !important; margin-bottom: 0.2rem;'>Podium Teratas</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-family: Inter; font-weight: 900; color: #1f2234 !important; margin-bottom: 0.2rem;'>Top Podium</h3>", unsafe_allow_html=True)
     st.markdown(build_podium(top3), unsafe_allow_html=True)
     st.markdown(
         "<div style='font-family: Source Sans 3; font-weight: 600; color: #1f2234 !important; font-size: 0.9rem; margin-top: 1.5rem; background: rgba(255,255,255,0.6); padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.8);'>"
-        "Urutan podium mengikuti skor tertinggi. Angka pada kartu adalah skor rata-rata per maskapai setelah perhitungan baris valid."
+        "The podium order follows the highest scores. The number on each card is the average score per airline after valid-row calculation."
         "</div>",
         unsafe_allow_html=True,
     )
@@ -345,15 +368,15 @@ with right_col:
     with st.container(border=True):
         st.markdown('<div class="white-card"></div>', unsafe_allow_html=True)
         
-        st.markdown("<h3 style='font-family: Inter; font-weight: 900; color: #1f2234 !important; margin-bottom: 0.2rem;'>Daftar Lengkap Maskapai</h3>", unsafe_allow_html=True)
-        st.markdown("<div style='font-family: Source Sans 3; font-weight: 600; color: #1c78bb; font-size: 0.95rem; margin-bottom: 1.2rem;'>Klik tombol detail untuk membuka halaman maskapai.</div>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-family: Inter; font-weight: 900; color: #1f2234 !important; margin-bottom: 0.2rem;'>Full Airline List</h3>", unsafe_allow_html=True)
+        st.markdown("<div style='font-family: Source Sans 3; font-weight: 600; color: #1c78bb; font-size: 0.95rem; margin-bottom: 1.2rem;'>Click the details button to open the airline page.</div>", unsafe_allow_html=True)
 
         col_ratios = [0.4, 2.3, 1.4, 2.0, 1.1, 1.8, 1.1, 1.2]
         table_scroll_height = 650
 
         with st.container(height=table_scroll_height, border=False):
             header_cols = st.columns(col_ratios, vertical_alignment="bottom")
-            headers = ["#", "Maskapai", "Negara", "Skor", "Ulasan", "% Rekomendasi", "Overall", ""]
+            headers = ["#", "Airline", "Country", "Score", "Reviews", "% Recommended", "Final Score", ""]
             for col, title in zip(header_cols, headers):
                 with col:
                     st.markdown(custom_header(title), unsafe_allow_html=True)
@@ -390,9 +413,9 @@ with right_col:
         st.markdown(
             f"""
             <div style="margin-top:0.8rem; font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem; font-weight: 600; color: #1c78bb !important; text-align: right;">
-                <span style="color: #26ae60;">●</span> &ge;100 ulasan &nbsp;&nbsp; 
-                <span style="color: #f39d11;">●</span> {int(min_reviews)}–99 ulasan &nbsp;&nbsp; 
-                <span style="color: #1f2234 !important; opacity: 0.6;">(Hanya menampilkan &ge; {int(min_reviews)} ulasan valid)</span>
+                <span style="color: #26ae60;">●</span> &ge;100 reviews &nbsp;&nbsp; 
+                <span style="color: #f39d11;">●</span> {int(min_reviews)}–99 reviews &nbsp;&nbsp; 
+                <span style="color: #1f2234 !important; opacity: 0.6;">(Showing only airlines with &ge; {int(min_reviews)} valid reviews)</span>
             </div>
             """,
             unsafe_allow_html=True,

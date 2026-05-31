@@ -80,7 +80,7 @@ def apply_global_filters(
         (filtered["review_year"] <= year_range[1])
     ]
 
-    # Cabin flown filter
+    # Cabin class filter
     if cabin_flown_list and "cabin_flown" in filtered.columns:
         filtered = filtered[filtered["cabin_flown"].isin(cabin_flown_list)]
 
@@ -231,6 +231,7 @@ def aggregate_airline_scores(
     weights: dict,
     group_columns: list[str] | None = None,
     min_reviews: int = 1,
+    cabin_filter: list[str] | None = None,
     country_filter: str | None = None,
     country_column: str = "airline_country",
 ) -> pd.DataFrame:
@@ -239,6 +240,9 @@ def aggregate_airline_scores(
         group_columns = ["airline_name"]
 
     filtered = df.copy()
+    if cabin_filter and "cabin_flown" in filtered.columns:
+        filtered = filtered[filtered["cabin_flown"].isin(cabin_filter)]
+
     if country_filter:
         if country_column in filtered.columns:
             filtered = filtered[filtered[country_column] == country_filter]
@@ -399,7 +403,7 @@ def compute_composite_scores(
 
 
 def triple_range_slider(
-    label: str = "Pilih 3 titik",
+    label: str = "Choose 3 points",
     default_points: tuple[int, int, int] = (25, 50, 75),
     key: str | None = None,
 ) -> dict:
@@ -455,7 +459,7 @@ def triple_range_slider(
   right: 0;
   height: 0.55rem;
   border-radius: 999px;
-  /* Latar belakang default akan dioverwrite oleh JS */
+    /* The default background will be overwritten by JS */
   background: #86c8f4; 
 }
 
@@ -481,7 +485,7 @@ def triple_range_slider(
   border: 0;
 }
 
-/* Mengubah warna Thumb (titik handle) menjadi warna Navy (#1f2234) tanpa border putih */
+/* Set the thumb (handle point) color to navy (#1f2234) without a white border */
 .tri-slider__input::-webkit-slider-thumb {
   pointer-events: auto;
   -webkit-appearance: none;
@@ -544,7 +548,7 @@ export default function(component) {
   const track = parentElement.querySelector('.tri-slider__track');
   const inputs = Array.from(parentElement.querySelectorAll('.tri-slider__input'));
 
-  title.textContent = data?.label ?? 'Slider 3 Titik';
+    title.textContent = data?.label ?? '3-Point Slider';
 
   const defaults = Array.isArray(data?.points) && data.points.length === 3
     ? data.points
@@ -566,7 +570,7 @@ export default function(component) {
     const ranges = computeRanges(points);
     const [first, second, third] = points;
 
-    // Membuat Linear Gradient Dinamis untuk 4 Segmen Warna
+    // Create a dynamic linear gradient for the four color segments
     track.style.background = `linear-gradient(to right,
       #86c8f4 0%, #86c8f4 ${first}%,
       #b2e278 ${first}%, #b2e278 ${second}%,
