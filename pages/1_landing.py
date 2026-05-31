@@ -283,27 +283,16 @@ st.html(
                 <div class="y-axis-labels">
                     <div class="label-row">
                         <span class="label-text highlight">Cabin Service</span>
-                        <div class="icon-circle highlight">
-                            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-                        </div>
                     </div>
                     <div class="label-row">
                         <span class="label-text normal">Seat Comfort</span>
-                        <div class="icon-circle normal">
-                            <svg viewBox="0 0 24 24"><path d="M7.59 5.41c-.78-.78-.78-2.05 0-2.83.78-.78 2.05-.78 2.83 0 .78.78.78 2.05 0 2.83-.79.79-2.05.79-2.83 0zM6 16V7H4v9c0 2.76 2.24 5 5 5h6v-2H9c-1.65 0-3-1.35-3-3zm14 4.07L14.93 15H11.5v-3.68c1.4 1.15 3.6 2.16 5.5 2.16v-2.16c-1.66.02-3.61-.87-4.67-2.04l-1.4-1.55c-.19-.21-.43-.38-.69-.5-.29-.14-.62-.23-.96-.23h-.03C8.01 7 7 8.01 7 9.25V15c0 1.66 1.34 3 3 3h5.07l3.5 3.5L20 20.07z"/></svg>
-                        </div>
                     </div>
                     <div class="label-row">
                         <span class="label-text normal">Food & Beverage</span>
-                        <div class="icon-circle normal">
-                            <svg viewBox="0 0 24 24"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></svg>
-                        </div>
                     </div>
                     <div class="label-row">
                         <span class="label-text normal" style="line-height: 1.2;">Inflight<br>Entertainment</span>
-                        <div class="icon-circle normal">
-                            <svg viewBox="0 0 24 24"><path d="M21 5H3C1.9 5 1 5.9 1 7v10c0 1.1 0.9 2 2 2h2.5l-1.5 2.5h1.8L7.5 19h9l1.7 2.5h1.8l-1.5-2.5H21c1.1 0 2-0.9 2-2V7c0-1.1-0.9-2-2-2zM21 17H3V7h18v10zM10 9v6l5-3z"/></svg>
-                        </div>
+                        
                     </div>
                 </div>
 
