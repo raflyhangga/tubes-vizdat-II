@@ -404,6 +404,7 @@ def triple_range_slider(
     key: str | None = None,
 ) -> dict:
     from typing import Any
+    import streamlit as st
 
     HTML = """
 <div class="tri-slider">
@@ -413,8 +414,6 @@ def triple_range_slider(
 
   <div class="tri-slider__track-area">
     <div class="tri-slider__track"></div>
-    <div class="tri-slider__fill"></div>
-
     <input class="tri-slider__input" data-handle="1" type="range" min="0" max="100" step="1" />
     <input class="tri-slider__input" data-handle="2" type="range" min="0" max="100" step="1" />
     <input class="tri-slider__input" data-handle="3" type="range" min="0" max="100" step="1" />
@@ -450,23 +449,14 @@ def triple_range_slider(
   align-items: center;
 }
 
-.tri-slider__track,
-.tri-slider__fill {
+.tri-slider__track {
   position: absolute;
   left: 0;
   right: 0;
   height: 0.55rem;
   border-radius: 999px;
-}
-
-.tri-slider__track {
-  background: rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-.tri-slider__fill {
-  background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
-  opacity: 0.9;
+  /* Latar belakang default akan dioverwrite oleh JS */
+  background: #86c8f4; 
 }
 
 .tri-slider__input {
@@ -491,6 +481,7 @@ def triple_range_slider(
   border: 0;
 }
 
+/* Mengubah warna Thumb (titik handle) menjadi warna Navy (#1f2234) tanpa border putih */
 .tri-slider__input::-webkit-slider-thumb {
   pointer-events: auto;
   -webkit-appearance: none;
@@ -498,9 +489,9 @@ def triple_range_slider(
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 50%;
-  border: 2px solid #ffffff;
-  background: #0f172a;
-  box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.35);
+  border: none;
+  background: #1f2234;
+  box-shadow: 0 0.15rem 0.5rem rgba(31, 34, 52, 0.4);
   cursor: grab;
   margin-top: -0.3rem;
 }
@@ -510,10 +501,17 @@ def triple_range_slider(
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 50%;
-  border: 2px solid #ffffff;
-  background: #0f172a;
-  box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.35);
+  border: none;
+  background: #1f2234;
+  box-shadow: 0 0.15rem 0.5rem rgba(31, 34, 52, 0.4);
   cursor: grab;
+}
+
+.tri-slider__input::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+.tri-slider__input::-moz-range-thumb:active {
+  cursor: grabbing;
 }
 """
 
@@ -543,7 +541,7 @@ function computeRanges(points) {
 export default function(component) {
   const { parentElement, data, setStateValue } = component;
   const title = parentElement.querySelector('.tri-slider__title');
-  const fill = parentElement.querySelector('.tri-slider__fill');
+  const track = parentElement.querySelector('.tri-slider__track');
   const inputs = Array.from(parentElement.querySelectorAll('.tri-slider__input'));
 
   title.textContent = data?.label ?? 'Slider 3 Titik';
@@ -568,8 +566,13 @@ export default function(component) {
     const ranges = computeRanges(points);
     const [first, second, third] = points;
 
-    fill.style.left = '0%';
-    fill.style.width = `${third}%`;
+    // Membuat Linear Gradient Dinamis untuk 4 Segmen Warna
+    track.style.background = `linear-gradient(to right,
+      #86c8f4 0%, #86c8f4 ${first}%,
+      #b2e278 ${first}%, #b2e278 ${second}%,
+      #fecd72 ${second}%, #fecd72 ${third}%,
+      #ffb2c0 ${third}%, #ffb2c0 100%
+    )`;
 
     setStateValue('value', {
       points: {
