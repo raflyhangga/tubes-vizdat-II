@@ -66,6 +66,24 @@ st.markdown(
             background-color: #ffffff !important;
             border-radius: 1.15rem !important;
         }
+
+        /* Style the Compare button */
+        div[data-testid="stButton"] button[kind="primary"] {
+            background-color: #1f2234 !important;
+            color: #ffffff !important;
+            border: 1px solid #1f2234 !important;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"] p,
+        div[data-testid="stButton"] button[kind="primary"] span,
+        div[data-testid="stButton"] button[kind="primary"] div {
+            color: #ffffff !important;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"]:hover {
+            background-color: #2a2e42 !important;
+            border-color: #2a2e42 !important;
+        }
         
           /* =========================================================
               NEW CSS SOLUTION: Separate Header and Gauge rules

@@ -188,12 +188,12 @@ def custom_banner(primary, secondary, tertiary):
     """
 
 def custom_header(text):
-    return f"<div style='font-family: Inter, sans-serif; font-weight: 900; font-size: 0.85rem; color: #1c78bb !important; border-bottom: 2px solid #86c8f4; padding-bottom: 0.5rem; margin-bottom: 0.2rem; white-space: nowrap;'>{text}</div>"
+    return f"<div style='font-family: Inter, sans-serif; font-weight: 900; font-size: 0.85rem; color: #1c78bb !important; border-bottom: 2px solid #86c8f4; padding-bottom: 0.5rem; margin-bottom: 0.2rem; white-space: nowrap; text-align: center;'>{text}</div>"
 
 def custom_text(text, bold=False):
     fw = "900" if bold else "600"
     ff = "'Inter', sans-serif" if bold else "'Source Sans 3', sans-serif"
-    return f"<div style='font-family: {ff}; font-weight: {fw}; font-size: 0.95rem; color: #1f2234 !important; padding: 0.2rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>{text}</div>"
+    return f"<div style='font-family: {ff}; font-weight: {fw}; font-size: 0.95rem; color: #1f2234 !important; padding: 0.2rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; width: 100%;'>{text}</div>"
 
 def custom_score_bar(score, max_score=5.0):
     pct = max(0.0, min((score / max_score) * 100.0, 100.0))
@@ -208,11 +208,11 @@ def custom_score_bar(score, max_score=5.0):
         track_color = "rgba(233, 76, 61, 0.18)"
 
     return f"""
-    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0;">
-        <div style="flex-grow: 1; height: 8px; background-color: {track_color}; border-radius: 4px; overflow: hidden; min-width: 40px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.2rem 0; width: 100%;">
+        <div style="flex-grow: 1; height: 8px; background-color: {track_color}; border-radius: 4px; overflow: hidden; min-width: 40px; max-width: 150px;">
             <div style="width: {pct}%; height: 100%; background-color: {bar_color}; border-radius: 4px;"></div>
         </div>
-        <div style="font-family: 'Inter', sans-serif; font-weight: 900; font-size: 1rem; color: {bar_color} !important; min-width: 2.2rem; text-align: right;">
+        <div style="font-family: 'Inter', sans-serif; font-weight: 900; font-size: 1rem; color: {bar_color} !important; min-width: 2.2rem; text-align: center;">
             {score:.2f}
         </div>
     </div>
@@ -221,7 +221,7 @@ def custom_score_bar(score, max_score=5.0):
 def custom_review_badge(count, min_reviews):
     color = "#26ae60" if count >= 100 else "#f39d11"
     return f"""
-    <div style="display: flex; align-items: center; gap: 0.35rem; font-family: 'Source Sans 3', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1f2234 !important; padding: 0.2rem 0; white-space: nowrap;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 0.35rem; font-family: 'Source Sans 3', sans-serif; font-size: 0.95rem; font-weight: 700; color: #1f2234 !important; padding: 0.2rem 0; white-space: nowrap; width: 100%; text-align: center;">
         <div style="width: 8px; height: 8px; border-radius: 50%; background-color: {color}; flex-shrink: 0;"></div>
         {count}
     </div>
@@ -376,7 +376,7 @@ with right_col:
 
         with st.container(height=table_scroll_height, border=False):
             header_cols = st.columns(col_ratios, vertical_alignment="bottom")
-            headers = ["#", "Airline", "Country", "Score", "Reviews", "% Recommended", "Final Score", ""]
+            headers = ["#", "Airline", "Country", "Score", "Reviews", "% Recommended", "Overall Rating", ""]
             for col, title in zip(header_cols, headers):
                 with col:
                     st.markdown(custom_header(title), unsafe_allow_html=True)
@@ -404,7 +404,7 @@ with right_col:
                 with row_cols[5]:
                     st.markdown(custom_text(f"{rec_pct:.1f}%", bold=True), unsafe_allow_html=True)
                 with row_cols[6]:
-                    st.markdown(custom_text(f"{overall_rating:.1f}", bold=True), unsafe_allow_html=True)
+                    st.markdown(custom_text(f"{overall_rating / 2:.1f}", bold=True), unsafe_allow_html=True)
                 with row_cols[7]:
                     render_detail_button(row["airline_name"], row["composite_score"], key=f"table_detail_{int(row['rank'])}")
 
