@@ -3,14 +3,16 @@ import pandas as pd
 
 from utils import slug_to_display
 
+DEFAULT_AIRLINE_COLOR = "#86c7f3"
 AIRLINE_COLORS = [
-    "#2ecc71",
-    "#3498db",
-    "#e74c3c",
-    "#9b59b6",
-    "#f39c12",
-    "#1abc9c",
+    "#b2e278",
+    "#ffb2c0",
+    "#fecd72",
 ]
+
+
+def _get_airline_color(index: int) -> str:
+    return DEFAULT_AIRLINE_COLOR if index == 0 else AIRLINE_COLORS[(index - 1) % len(AIRLINE_COLORS)]
 
 
 def build_boxplot(df: pd.DataFrame, airline_slugs: list) -> go.Figure:
@@ -28,7 +30,7 @@ def build_boxplot(df: pd.DataFrame, airline_slugs: list) -> go.Figure:
     fig = go.Figure()
     for i, slug in enumerate(sorted_slugs):
         airline_data = df[df["airline_name"] == slug]["overall_rating"].dropna()
-        color = AIRLINE_COLORS[i % len(AIRLINE_COLORS)]
+        color = _get_airline_color(i)
         fig.add_trace(
             go.Box(
                 y=airline_data,
@@ -46,22 +48,23 @@ def build_boxplot(df: pd.DataFrame, airline_slugs: list) -> go.Figure:
         )
 
     fig.update_layout(
-        yaxis=dict(title="Rating Keseluruhan (1–10)", range=[0, 11]),
-        xaxis=dict(title="Maskapai"),
+        font=dict(color="#1f2234"),
+        yaxis=dict(title=dict(text="Rating Keseluruhan (1–10)", font=dict(color="#1f2234")), range=[0, 11], tickfont=dict(color="#1f2234")),
+        xaxis=dict(title=dict(text="Maskapai", font=dict(color="#1f2234")), tickfont=dict(color="#1f2234")),
         showlegend=False,
         margin=dict(l=40, r=20, t=30, b=60),
-        height=320,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        height=300,
+        paper_bgcolor="#f5f7fa",
+        plot_bgcolor="#f5f7fa",
     )
-    fig.update_yaxes(gridcolor="#e8e8e8")
+    fig.update_yaxes(gridcolor="#d1d5db")
     return fig
 
 
 def build_single_airline_subrating_boxplot(df: pd.DataFrame, airline_slug: str, rating_columns: list[str]) -> go.Figure:
     """Build a subrating boxplot for a single airline across its review data."""
     fig = go.Figure()
-    color = AIRLINE_COLORS[0]
+    color = DEFAULT_AIRLINE_COLOR
 
     for col in rating_columns:
         values = df[col].dropna()
@@ -81,16 +84,24 @@ def build_single_airline_subrating_boxplot(df: pd.DataFrame, airline_slug: str, 
         )
 
     fig.update_layout(
-        yaxis=dict(title="Nilai Rating", range=[0, 5]),
-        xaxis=dict(title="Subrating"),
+        font=dict(color="#1f2234"),
+        yaxis=dict(title=dict(text="Nilai Rating", font=dict(color="#1f2234")), range=[0, 5], tickfont=dict(color="#1f2234")),
+        xaxis=dict(title=dict(text="Subrating", font=dict(color="#1f2234")), tickfont=dict(color="#1f2234")),
         showlegend=False,
         margin=dict(l=40, r=20, t=40, b=60),
         height=300,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="#f5f7fa",
+        plot_bgcolor="#f5f7fa",
     )
-    fig.update_yaxes(gridcolor="#e8e8e8")
+    fig.update_yaxes(gridcolor="#d1d5db")
     return fig
+
+
+def _pretty_boxplot_title(column_name: str) -> str:
+    title = column_name.replace("_", " ").title()
+    if title.endswith(" Rating"):
+        return title.replace(" Rating", "<br>Rating")
+    return title
 
 
 def build_comparison_subrating_boxplots(df: pd.DataFrame, airline_slugs: list[str], rating_columns: list[str]) -> list[go.Figure]:
@@ -100,7 +111,7 @@ def build_comparison_subrating_boxplots(df: pd.DataFrame, airline_slugs: list[st
         fig = go.Figure()
         for i, slug in enumerate(airline_slugs):
             values = df[df["airline_name"] == slug][col].dropna()
-            color = AIRLINE_COLORS[i % len(AIRLINE_COLORS)]
+            color = _get_airline_color(i)
             fig.add_trace(
                 go.Box(
                     y=values,
@@ -117,17 +128,24 @@ def build_comparison_subrating_boxplots(df: pd.DataFrame, airline_slugs: list[st
             )
 
         fig.update_layout(
-            yaxis=dict(title="Nilai Rating", range=[0, 5]),
-            xaxis=dict(title="Maskapai"),
+            font=dict(color="#1f2234"),
+            yaxis=dict(title=dict(text="Nilai Rating", font=dict(color="#1f2234")), range=[0, 5], tickfont=dict(color="#1f2234")),
+            xaxis=dict(title=dict(text="Maskapai", font=dict(color="#1f2234")), automargin=True, tickfont=dict(color="#1f2234")),
             showlegend=False,
-            margin=dict(l=40, r=20, t=40, b=60),
-            height=280,
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            title_text=col.replace("_", " ").title(),
-            title_x=0.5,
+            margin=dict(l=40, r=20, t=70, b=60),
+            height=340,
+            paper_bgcolor="#f5f7fa",
+            plot_bgcolor="#f5f7fa",
+            title=dict(
+                text=_pretty_boxplot_title(col),
+                x=0.5,
+                xanchor="center",
+                y=0.95,
+                yanchor="top",
+                font=dict(color="#1f2234", size=13),
+            ),
         )
-        fig.update_yaxes(gridcolor="#e8e8e8")
+        fig.update_yaxes(gridcolor="#d1d5db")
         figs.append(fig)
 
     return figs

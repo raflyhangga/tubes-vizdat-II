@@ -13,14 +13,16 @@ RADAR_COL_KEYS = [
     "inflight_entertainment_rating",
 ]
 
+DEFAULT_AIRLINE_COLOR = "#86c7f3"
 AIRLINE_COLORS = [
-    "#2ecc71",
-    "#3498db",
-    "#e74c3c",
-    "#9b59b6",
-    "#f39c12",
-    "#1abc9c",
+    "#b2e278",
+    "#ffb2c0",
+    "#fecd72",
 ]
+
+
+def _get_airline_color(index: int) -> str:
+    return DEFAULT_AIRLINE_COLOR if index == 0 else AIRLINE_COLORS[(index - 1) % len(AIRLINE_COLORS)]
 
 
 def build_radar(airlines_data: dict, benchmark: dict | None = None) -> go.Figure:
@@ -38,7 +40,7 @@ def build_radar(airlines_data: dict, benchmark: dict | None = None) -> go.Figure
         r_values_closed = r_values + [r_values[0]]
         theta_closed = RADAR_AXIS_LABELS + [RADAR_AXIS_LABELS[0]]
 
-        color = AIRLINE_COLORS[i % len(AIRLINE_COLORS)]
+        color = _get_airline_color(i)
         fig.add_trace(
             go.Scatterpolar(
                 r=r_values_closed,
@@ -67,20 +69,22 @@ def build_radar(airlines_data: dict, benchmark: dict | None = None) -> go.Figure
         )
 
     fig.update_layout(
+        font=dict(color="#1f2234"),
         polar=dict(
             radialaxis=dict(
                 visible=True,
                 range=[0, 5],
                 tickvals=[1, 2, 3, 4, 5],
-                tickfont=dict(size=10),
-                gridcolor="#e0e0e0",
+                tickfont=dict(size=10, color="#1f2234"),
+                gridcolor="#d1d5db",
+                linecolor="#d1d5db",
             ),
-            angularaxis=dict(tickfont=dict(size=11)),
+            angularaxis=dict(tickfont=dict(size=11, color="#1f2234"), gridcolor="#d1d5db", linecolor="#d1d5db"),
         ),
         showlegend=True,
-        legend=dict(orientation="h", y=-0.12, font=dict(size=10)),
+        legend=dict(orientation="h", y=-0.14, font=dict(size=10, color="#1f2234")),
         margin=dict(l=25, r=25, t=20, b=35),
-        height=280,
+        height=300,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )

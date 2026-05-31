@@ -106,6 +106,8 @@ with top_right:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("Bandingkan", type="primary", use_container_width=True):
         st.session_state["page4_country"] = home_country
+        st.session_state["page4_default_airline"] = slug
+        st.session_state["page4_compare_airlines"] = []
         st.session_state["compare_airlines"] = [slug]
         st.switch_page("pages/4_comparison.py")
 
