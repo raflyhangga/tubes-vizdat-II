@@ -16,7 +16,11 @@ from charts.boxplot import (
     build_comparison_subrating_boxplots,
 )
 
-st.set_page_config(page_title="Airline Comparison", layout="wide")
+st.set_page_config(
+    page_title="Airline Comparison",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 PAGE_STYLE = """
 <style>
